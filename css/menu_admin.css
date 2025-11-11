@@ -1,0 +1,333 @@
+/* RESET BÁSICO */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Montserrat', sans-serif;
+  background: #f3f3f3; /* ← NUEVO fondo coherente */
+}
+
+/* ========== SIDEBAR FIJO ========== */
+.accordion-menu {
+  width: 250px;
+  height: 100vh;
+  background: #fff;
+  border-right: 1px solid #dca8a8;
+  padding-top: 0px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 4px 0 8px rgba(0, 0, 0, 0.05);
+}
+
+.menu-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 20px;
+  border-bottom: 1px solid #5c0000;
+  background-color: #840000;
+}
+
+.menu-header span {
+  font-size: 16px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.menu-header img {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+ul {
+  list-style: none;
+}
+
+.dropdownlink {
+  cursor: pointer;
+  display: block;
+  padding: 15px 15px 15px 45px;
+  font-size: 16px;
+  font-weight: bold;
+  border-bottom: 1px solid #dca8a8;
+  color: #212121;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.dropdownlink i {
+  position: absolute;
+  top: 17px;
+  left: 16px;
+  font-size: 16px;
+  color: #840000;
+}
+
+.dropdownlink .fa-chevron-down {
+  right: 12px;
+  left: auto;
+  position: absolute;
+  top: 17px;
+  font-size: 13px;
+  color: #840000;
+}
+
+.dropdownlink:hover {
+  background-color: #fbe3e3;
+  color: #840000;
+  padding-left: 50px;
+}
+
+.accordion-menu li.open .dropdownlink {
+  color: #840000;
+  background-color: #fbe3e3;
+}
+
+.accordion-menu li:last-child .dropdownlink {
+  border-bottom: 0;
+}
+
+.submenuItems {
+  display: none;
+  background: #f8e1e1;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.submenuItems li {
+  border-bottom: 1px solid #dca8a8;
+}
+
+.submenuItems a {
+  display: block;
+  color: #840000;
+  padding: 12px 12px 12px 45px;
+  transition: all 0.3s ease;
+  font-size: 15px;
+}
+
+.submenuItems a:hover {
+  background-color: #f2c6c6;
+  color: #b00020;
+  padding-left: 50px;
+}
+
+.logout-item {
+  border-top: 1px solid #dca8a8;
+  margin-top: 15px;
+}
+
+.logout-item .dropdownlink {
+  color: #840000;
+  text-align: left;
+}
+
+.logout-item .dropdownlink:hover {
+  background-color: #f2c6c6;
+  color: #b00020;
+}
+
+/* ========== CABECERA FIJA ========== */
+.top-header {
+  position: fixed;
+  top: 0;
+  left: 250px;
+  width: calc(100% - 250px);
+  height: 60px;
+  background-color: #840000;
+  border-bottom: 1px solid #5c0000;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 20px;
+  z-index: 1000;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.user-info:hover {
+  background-color: #a33a3a;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+}
+
+.profile-icon {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.username {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+/* Dropdown del usuario */
+.user-dropdown {
+  display: none;
+  position: absolute;
+  top: 45px;
+  right: 0;
+  background-color: #fff;
+  border: 1px solid #dca8a8;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  min-width: 160px;
+  z-index: 1001;
+}
+
+.user-dropdown.active {
+  display: block;
+}
+
+.user-dropdown a {
+  display: block;
+  padding: 10px 15px;
+  color: #840000;
+  text-decoration: none;
+  transition: background 0.2s ease;
+}
+
+.user-dropdown a:hover {
+  background-color: #f2c6c6;
+  color: #b00020;
+}
+
+/* ========== CONTENIDO PRINCIPAL ========== */
+.main-content {
+  margin-left: 185px;
+  padding: 50px 30px 60px 30px;
+  width: calc(100% - 250px);
+  color: #212121;
+  position: relative;
+}
+
+h2 {
+  margin-bottom: 20px;
+  color: #840000;
+}
+
+a {
+  text-decoration: none;
+}
+
+/* ========== FOOTER ========== */
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 250px;
+  width: calc(100% - 250px);
+  background-color: #f8e1e1;
+  border-top: 1px solid #ccc;
+  color: #840000;
+  font-size: 13px;
+  text-align: center;
+  padding: 10px 0;
+  z-index: 10;
+}
+
+/* ========== TABLA DEPOSITOS (REUTILIZABLE) ========== */
+table {
+  width: 100%;
+  border-collapse: separate; /* <- CAMBIO CLAVE */
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  background-color: #fff;
+  box-shadow: 0 4px 10px rgb(0, 0, 0);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 10px;
+  border: 2px solid #00000086; /* borde exterior negro */
+  color: #000000 !important;
+  font-weight: bold !important;
+}
+
+thead {
+  background-color: #840000;
+  color: white;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+thead th {
+  padding: 12px 10px;
+  border-bottom: 2px solid #5c0000;
+}
+
+tbody td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #e0d4d4;
+  color: #333;
+}
+
+tbody tr:hover {
+  background-color: #fdf2f2;
+}
+
+.acciones i {
+  margin: 0 5px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.acciones i:hover {
+  transform: scale(1.2);
+}
+
+
+#menu-depositos-judiciales > .dropdownlink {
+      font-weight: 800;
+      color: #000000;
+    }
+    #menu-depositos-judiciales .submenuItems {
+      display: block !important;
+      max-height: none;
+      opacity: 1;
+      font-weight: 750;
+    }
+    #menu-depositos-judiciales .submenuItems li a {
+    color: #000 !important;      /* texto en negro */
+  }
+  
+  #menu-depositos-judiciales .submenuItems li a i {
+    color: #700000 !important;
+  }
+
+
+
+  #menu-depositos-judiciales-1 > .dropdownlink {
+      font-weight: 600;
+      color: #000000;
+    }
+    #menu-depositos-judiciales-1 .submenuItems {
+      max-height: none;
+      opacity: 1;
+      font-weight: 750;
+    }
+    #menu-depositos-judiciales-1 .submenuItems li a {
+      font-weight: 600;
+      color: #700000 !important;      /* texto en negro */
+  }
+  
+  #menu-depositos-judiciales-1 .submenuItems li a i {
+    color: #000000 !important;
+  }

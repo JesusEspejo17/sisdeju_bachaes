@@ -1,0 +1,198 @@
+/* RESET BÁSICO */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* === ESTRUCTURA GENERAL === */
+body {
+  background-color: #f3f3f3;
+  font-family: 'Montserrat', sans-serif;
+  color: #212121;
+  line-height: 1.6;
+}
+
+/* Contenedor Principal */
+.main-container {
+  width: 85%;
+  margin-left: 60px;
+  padding-top: 30px;
+  padding-bottom: 60px;
+}
+
+/* Título principal */
+h1 {
+  font-size: 26px;
+  color: #840000;
+  margin-bottom: 25px;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Formulario */
+form {
+  background-color: #ffffff;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  animation: aparecer 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+/* Fila del formulario */
+.form-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+/* Inputs y selects */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="password"],
+input[type="number"],
+select {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #dca8a8;
+  border-radius: 6px;
+  font-size: 15px;
+  background-color: #fffdfd;
+  transition: all 0.3s ease;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+input:focus,
+select:focus {
+  border-color: #840000;
+  background-color: #ffffff;
+  transform: scale(1.02);
+  box-shadow: 0 0 6px rgba(132, 0, 0, 0.25);
+  outline: none;
+}
+
+/* Etiquetas */
+label {
+  font-size: 16px;
+  color: #840000;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+/* Botones */
+input[type="submit"],
+input[type="button"],
+.btn-agregar {
+  background-color: #840000;
+  color: white;
+  padding: 10px 25px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  margin-top: 10px;
+  transition: all 0.3s ease;
+}
+
+input[type="submit"]:hover,
+input[type="button"]:hover,
+.btn-agregar:hover {
+  background-color: #b00020;
+  transform: scale(1.05);
+  box-shadow: 0 4px 10px rgba(132, 0, 0, 0.25);
+}
+
+/* Tabla */
+.table-container {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  margin-top: 30px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  border: 2px solid #000;
+}
+
+table th,
+table td {
+  padding: 12px;
+  text-align: center;
+  border: 1px solid #e0e0e0;
+  font-size: 15px;
+}
+
+table th {
+  background-color: #840000;
+  color: white;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+table td {
+  background-color: #fdf7f7;
+  transition: background 0.2s ease;
+}
+
+table tbody tr:hover {
+  background-color: #f2c6c6;
+}
+
+/* Animación de entrada */
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Campo solo lectura */
+.read-only-field {
+  padding: 10px;
+  border: 1px solid #dca8a8;
+  border-radius: 5px;
+  background-color: #fff9f9;
+  font-size: 16px;
+  flex: 1;
+}
+
+.read-only-field .placeholder {
+  color: #aaa;
+  font-style: italic;
+}
+
+/* Campo especial grande */
+input[type="number"].monto-grande {
+  font-size: 24px !important;
+  padding: 18px !important;
+  font-weight: bold;
+  background-color: #fff2f2;
+  text-align: center;
+  border: 2px solid #dca8a8;
+}
+
+/* Footer */
+footer.footer {
+  position: fixed;
+  bottom: 0;
+  left: 250px;
+  width: calc(100% - 250px);
+  background-color: #f8e1e1;
+  border-top: 1px solid #ccc;
+  color: #840000;
+  font-size: 13px;
+  text-align: center;
+  padding: 10px 0;
+  z-index: 10;
+}
