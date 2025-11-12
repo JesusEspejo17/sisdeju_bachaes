@@ -110,6 +110,11 @@ function cerrarModalChat() {
 function appendSingleMessageToChat(m) {
   const cont = document.getElementById('chat-historial');
   if (!cont) return;
+  const rawComentario = (m && (m.comentario_deposito || m.comentario)) ? String(m.comentario_deposito || m.comentario) : '';
+  const normalizedComentario = rawComentario.trim().toUpperCase();
+  if (normalizedComentario.includes('FECHA RECOJO PROGRAMADA')) {
+    return;
+  }
   const div = document.createElement('div');
   div.style.margin = '6px 8px';
   div.style.padding = '6px 8px';
@@ -273,12 +278,18 @@ function cargarHistorial(dep) {
 
       // Renderizar historial
       const arr = data.data || [];
-      if (!Array.isArray(arr) || arr.length === 0) {
+      const filteredArr = Array.isArray(arr)
+        ? arr.filter((m) => {
+            const raw = m && (m.comentario_deposito || m.comentario) ? String(m.comentario_deposito || m.comentario) : '';
+            return !raw.trim().toUpperCase().includes('FECHA RECOJO PROGRAMADA');
+          })
+        : [];
+      if (!Array.isArray(filteredArr) || filteredArr.length === 0) {
         chat.innerHTML = "<i>No hay mensajes.</i>";
         return;
       }
 
-      chat.innerHTML = arr
+      chat.innerHTML = filteredArr
         .map((m) => {
           const rolStr = escapeHtml(m.nombre_rol || "Usuario");
           const nombreStr = escapeHtml(`${m.nombre_persona || ""} ${m.apellido_persona || ""}`);
