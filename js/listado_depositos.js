@@ -106,28 +106,6 @@ function cerrarModalChat() {
   openDepId = null;
 }
 
-// Mostrar toast (simple)
-function showToast(title, text, onClick) {
-if (typeof rolActual === "undefined" || ![2,3].includes(parseInt(rolActual))){
-  return;
-}
-  const container = document.getElementById('notification-container') || (function(){
-    const n = document.createElement('div');
-    n.id = 'notification-container';
-    n.style = 'position: fixed; bottom: 20px; right: 20px; z-index: 9999; display:flex; flex-direction:column; gap:10px;';
-    document.body.appendChild(n);
-    return n;
-  })();
-
-  const t = document.createElement('div');
-  t.className = 'my-toast';
-  t.style.cssText = 'background:#111;color:#fff;padding:10px;border-radius:6px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.25);max-width:320px;';
-  t.innerHTML = `<strong style="display:block;margin-bottom:6px;">${escapeHtml(title)}</strong><div style="max-width:320px">${escapeHtml(text)}</div>`;
-  t.onclick = () => { onClick && onClick(); t.remove(); };
-  container.appendChild(t);
-  setTimeout(()=> { if (t.parentNode) t.remove(); }, 8000);
-}
-
 // Append de un solo mensaje (nuevo) en el chat DOM
 function appendSingleMessageToChat(m) {
   const cont = document.getElementById('chat-historial');
@@ -2069,10 +2047,6 @@ async function fetchLastByDepositosAndProcess() {
               if (!(openDepId && String(openDepId) === String(id))) {
                 const uniqToastId = `cnt:${id}:${no_leidos}:${fecha || ''}:${String(row.tipo_evento||row.tipo||'')}`;
                 if (!window._shownMessages.has(uniqToastId)) {
-                  showToast(`Nuevo mensaje en depósito ${id}`, (row.comentario_deposito || '').slice(0,120), () => {
-                    const icon = document.querySelector(`.chat-icon[data-iddep="${id}"], .chat-icon[data-dep="${id}"]`);
-                    if (icon) icon.click();
-                  });
                   markShown(uniqToastId);
                 }
               }
@@ -2082,10 +2056,6 @@ async function fetchLastByDepositosAndProcess() {
             if (!(openDepId && String(openDepId) === String(id))) {
               const uniqToastId = `cnt:${id}:${no_leidos}:${fecha || ''}:${String(row.tipo_evento||row.tipo||'')}`;
               if (!window._shownMessages.has(uniqToastId)) {
-                showToast(`Nuevo mensaje en depósito ${id}`, (row.comentario_deposito || '').slice(0,120), () => {
-                  const icon = document.querySelector(`.chat-icon[data-iddep="${id}"], .chat-icon[data-dep="${id}"]`);
-                  if (icon) icon.click();
-                });
                 markShown(uniqToastId);
               }
             }
@@ -2094,10 +2064,6 @@ async function fetchLastByDepositosAndProcess() {
           // modal no abierto -> mostrar toast (si no lo mostramos antes por uniq)
           const uniqToastId = `cnt:${id}:${no_leidos}:${fecha || ''}:${String(row.tipo_evento||row.tipo||'')}`;
           if (!window._shownMessages.has(uniqToastId)) {
-            showToast(`Nuevo mensaje en depósito ${id}`, (row.comentario_deposito || '').slice(0,120), () => {
-              const icon = document.querySelector(`.chat-icon[data-iddep="${id}"], .chat-icon[data-dep="${id}"]`);
-              if (icon) icon.click();
-            });
             markShown(uniqToastId);
           }
         }
@@ -2134,10 +2100,6 @@ async function fetchLastByDepositosAndProcess() {
         } else {
           const uniqToastId = `ts:${id}:${fecha}:${String(row.tipo_evento||row.tipo||'')}`;
           if (!window._shownMessages.has(uniqToastId)) {
-            showToast(`Nuevo mensaje en depósito ${id}`, (row.comentario_deposito || '').slice(0,120), () => {
-              const icon = document.querySelector(`.chat-icon[data-iddep="${id}"], .chat-icon[data-dep="${id}"]`);
-              if (icon) icon.click();
-            });
             markShown(uniqToastId);
           }
         }
