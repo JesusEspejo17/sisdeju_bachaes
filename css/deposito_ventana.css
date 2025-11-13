@@ -159,6 +159,29 @@ table#tabla-depositos tbody tr[data-estado="9"] td {
   background-color: #e994f5 !important;
 }
 
+/* ========== ESTADOS DE OBSERVACIÓN (MAYOR PRIORIDAD) ========== */
+/* Estado 11: OBSERVADO - Fucsia/Rosa */
+table#tabla-depositos tbody tr[data-estado-observacion="11"] td {
+  background-color: #ff14912c !important; /* Fucsia */
+} 
+
+
+tr[data-estado-observacion="11"] td {
+  color: #ffffff !important; /* Texto blanco para contraste */
+  font-weight: bold !important;
+}
+
+/* Estado 12: OBSERVACIÓN ATENDIDA - Naranja neón */
+table#tabla-depositos tbody tr[data-estado-observacion="12"] td {
+  background-color: #ff660079 !important; /* Naranja neón */
+}
+
+
+tr[data-estado-observacion="12"] td {
+  color: #ffffff !important; /* Texto blanco para contraste */
+  font-weight: bold !important;
+}
+
 tr[data-estado="3"] td {
   color: #000000 !important;
   font-weight: bold !important;

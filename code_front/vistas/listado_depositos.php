@@ -31,6 +31,21 @@ if (!$mostrarAnulados) {
   $whereClauses[] = "dj.id_estado != 10";
 }
 
+// Filtro especial para MAU: si NO hay filtro de estado específico y es rol MAU (2),
+// mostrar primero los observados (estado 11), luego el resto
+$filtroObservadosMAU = false;
+if ($idRol === 2 && $filtroEstado === 'todos') {
+  // Verificar si hay depósitos OBSERVADOS (solo estado 11, no 12)
+  $checkObs = mysqli_query($cn, "SELECT COUNT(*) AS total FROM deposito_judicial WHERE estado_observacion = 11 AND id_estado != 10");
+  $rowObs = mysqli_fetch_assoc($checkObs);
+  if ($rowObs && (int)$rowObs['total'] > 0) {
+    // Hay observados pendientes: filtrar solo observados (estado 11)
+    $whereClauses[] = "dj.estado_observacion = 11";
+    $filtroObservadosMAU = true;
+  }
+  // Si no hay observados pendientes (11), mostrar todos (comportamiento normal)
+}
+
 // Rol específico (mantener tu condicion original)
 if ($idRol === 3) {
   $whereClauses[] = "dj.documento_secretario = '" . mysqli_real_escape_string($cn, $usuarioActual) . "' AND dj.id_estado != 4";
@@ -48,6 +63,8 @@ if ($filtroEstado !== 'todos') {
     case 'notirepro':    $whereClauses[] = "dj.id_estado = 8"; break;
     case 'repro':        $whereClauses[] = "dj.id_estado = 9"; break;
     case 'anulados':     $whereClauses[] = "dj.id_estado = 10"; break;
+    case 'observados':   $whereClauses[] = "dj.estado_observacion = 11"; break;
+    case 'observados_atendidos': $whereClauses[] = "dj.estado_observacion = 12"; break;
   }
 }
 
@@ -107,6 +124,10 @@ $sqlBase = "
     dj.fecha_recojo_deposito,
     dj.fecha_notificacion_deposito,
     dj.id_estado,
+    dj.estado_observacion,
+    dj.motivo_observacion,
+    dj.fecha_observacion,
+    dj.fecha_atencion_observacion,
     e.nombre_estado,
     CONCAT(sec.nombre_persona,' ',sec.apellido_persona) AS nombre_secretario,
     bene.telefono_persona AS telefono_beneficiario,
@@ -269,6 +290,14 @@ $showTo = ($perPage === 0) ? $totalRows : min($offset + $perPageUsed, $totalRows
     .whatsapp-icon:hover {
       color: #000000 !important;
     }
+    /* Icono de check verde para atender observación */
+    .atender-observacion-icon {
+      transition: transform 0.2s ease, color 0.2s ease;
+    }
+    .atender-observacion-icon:hover {
+      transform: scale(1.2);
+      color: #218838 !important; /* Verde más oscuro al hover */
+    }
   </style>
 </head>
 <body>
@@ -286,6 +315,8 @@ $showTo = ($perPage === 0) ? $totalRows : min($offset + $perPageUsed, $totalRows
             <option value="porentregar" class="bold-option" <?= $filtroEstado==='porentregar' ? 'selected' : '' ?>>Por Entregar</option>
             <option value="entregados" class="bold-option" <?= $filtroEstado==='entregados' ? 'selected' : '' ?>>Entregados</option>
             <option value="anulados" class="bold-option" <?= $filtroEstado==='anulados' ? 'selected' : '' ?>>Anulados</option>
+            <option value="observados" class="bold-option" <?= $filtroEstado==='observados' ? 'selected' : '' ?>>Observados</option>
+            <option value="observados_atendidos" class="bold-option" <?= $filtroEstado==='observados_atendidos' ? 'selected' : '' ?>>Observaciones Atendidas</option>
             <option value="recojo" <?= $filtroEstado==='recojo' ? 'selected' : '' ?>>Recojo Notificado</option>
             <option value="notirecojo" <?= $filtroEstado==='notirecojo' ? 'selected' : '' ?>>Notificar Recojo</option>
             <option value="notientrega" <?= $filtroEstado==='notientrega' ? 'selected' : '' ?>>Notificar Entrega</option>
@@ -427,6 +458,7 @@ $showTo = ($perPage === 0) ? $totalRows : min($offset + $perPageUsed, $totalRows
       <tbody>
       <?php while ($d = mysqli_fetch_assoc($resultado)):
         $est = (int)$d['id_estado'];
+        $estObs = $d['estado_observacion'] ? (int)$d['estado_observacion'] : null;
         // preparar valor ISO-DB para dataset (puede ser NULL)
         $fecha_notif_iso = $d['fecha_notificacion_deposito'] ? $d['fecha_notificacion_deposito'] : '';
         $esAnulado = ($est === 10);
@@ -434,6 +466,9 @@ $showTo = ($perPage === 0) ? $totalRows : min($offset + $perPageUsed, $totalRows
         <tr
           class="<?= $esAnulado ? 'deposito-anulado' : '' ?>"
           data-estado="<?= $est ?>"
+          <?php if ($estObs !== null): ?>
+          data-estado-observacion="<?= $estObs ?>"
+          <?php endif; ?>
           data-expediente="<?= htmlspecialchars($d['n_expediente']) ?>"
           data-deposito="<?= htmlspecialchars($d['n_deposito']) ?>"
           data-dni="<?= $d['dni_beneficiario'] ?: '' ?>"
@@ -516,6 +551,27 @@ $showTo = ($perPage === 0) ? $totalRows : min($offset + $perPageUsed, $totalRows
             <?php if ($est === 10): ?>
               <span style="color: #721c24; font-weight: 600; font-style: italic;">ANULADO</span>
             <?php else: ?>
+              <!-- Icono de OBSERVAR para Secretario (rol 3) -->
+              <?php if ($idRol === 3 && !in_array($est, [1, 10])): ?>
+                <i class="fas fa-exclamation-triangle observar-icon" 
+                  data-iddep="<?= (int)$d['id_deposito'] ?>" 
+                  style="color: #FF6600; font-size: 18px;"
+                  title="Marcar como Observado"></i>
+              <?php endif; ?>
+
+              <!-- Icono de CHECK VERDE para MAU (rol 2) cuando estado_observacion=11 -->
+              <?php 
+                $estObs = $d['estado_observacion'] ? (int)$d['estado_observacion'] : null;
+                if ($idRol === 2 && $estObs === 11): 
+              ?>
+                <i class="fas fa-check-circle atender-observacion-icon" 
+                  data-iddep="<?= (int)$d['id_deposito'] ?>" 
+                  data-deposito="<?= htmlspecialchars($d['n_deposito'] ?? '', ENT_QUOTES) ?>"
+                  data-expediente="<?= htmlspecialchars($d['n_expediente'] ?? '', ENT_QUOTES) ?>"
+                  style="color: #28a745; font-size: 20px; cursor: pointer;"
+                  title="Marcar como Observación Atendida"></i>
+              <?php endif; ?>
+
               <!-- (misma lógica de acciones que tenías) -->
               <?php if ($idRol === 2 && $est === 4): ?>
                 <i class="fas fa-bell notificar-icon"
@@ -623,6 +679,43 @@ $showTo = ($perPage === 0) ? $totalRows : min($offset + $perPageUsed, $totalRows
       </div>
       <div id="chat-botones-superiores"></div>
       <button id="chat-cerrar-btn" onclick="cerrarModalChat()">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- MODAL OBSERVACIÓN -->
+  <div class="modal" id="modal-observacion" style="display:none;">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <span class="modal-close" onclick="cerrarModalObservacion()">&times;</span>
+      <h3>Marcar Depósito como OBSERVADO</h3>
+      <p style="margin: 10px 0; font-size: 0.95rem;">
+        <strong>Depósito:</strong> <span id="obs-deposito"></span><br>
+        <strong>Expediente:</strong> <span id="obs-expediente"></span>
+      </p>
+      <div style="margin: 15px 0;">
+        <label for="obs-motivo" style="display: block; margin-bottom: 5px; font-weight: 600;">
+          Motivo de la Observación: <span style="color: red;">*</span>
+        </label>
+        <textarea 
+          id="obs-motivo" 
+          rows="4" 
+          placeholder="Ingrese el motivo por el cual se marca como observado..." 
+          style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; resize: vertical;"
+        ></textarea>
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button 
+          id="obs-confirmar-btn" 
+          style="background-color: #FF6600; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;"
+        >
+          Confirmar Observación
+        </button>
+        <button 
+          onclick="cerrarModalObservacion()" 
+          style="background-color: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;"
+        >
+          Cancelar
+        </button>
+      </div>
     </div>
   </div>
 
@@ -773,6 +866,145 @@ $showTo = ($perPage === 0) ? $totalRows : min($offset + $perPageUsed, $totalRows
     // initial listeners attached; don't auto-fetch on load to avoid double requests.
   })();
   // ---------- fin AJAX live filter ----------
+
+  // ========================================
+  // MODAL OBSERVACIÓN - Funciones
+  // ========================================
+  let observacionIdDeposito = null;
+
+  function abrirModalObservacion(idDeposito, nDeposito, nExpediente) {
+    observacionIdDeposito = idDeposito;
+    document.getElementById('obs-deposito').textContent = nDeposito || '--';
+    document.getElementById('obs-expediente').textContent = nExpediente || '--';
+    document.getElementById('obs-motivo').value = '';
+    document.getElementById('modal-observacion').style.display = 'flex';
+  }
+
+  function cerrarModalObservacion() {
+    observacionIdDeposito = null;
+    document.getElementById('obs-motivo').value = '';
+    document.getElementById('modal-observacion').style.display = 'none';
+  }
+
+  // Cerrar al hacer clic fuera del contenido
+  document.getElementById('modal-observacion').addEventListener('click', function(e) {
+    if (e.target === this) {
+      cerrarModalObservacion();
+    }
+  });
+
+  // Manejar clic en icono de observar
+  document.addEventListener('click', function(e) {
+    const icon = e.target.closest('.observar-icon');
+    if (!icon) return;
+
+    const idDeposito = parseInt(icon.dataset.iddep, 10);
+    const tr = icon.closest('tr');
+    const nDeposito = tr.dataset.deposito || '--';
+    const nExpediente = tr.dataset.expediente || '--';
+
+    abrirModalObservacion(idDeposito, nDeposito, nExpediente);
+  });
+
+  // Confirmar observación
+  document.getElementById('obs-confirmar-btn').addEventListener('click', async function() {
+    const motivo = document.getElementById('obs-motivo').value.trim();
+
+    if (!motivo) {
+      Swal.fire('Atención', 'Debe ingresar el motivo de la observación.', 'warning');
+      return;
+    }
+
+    if (!observacionIdDeposito) {
+      Swal.fire('Error', 'No se ha seleccionado un depósito.', 'error');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('id_deposito', observacionIdDeposito);
+    formData.append('motivo_observacion', motivo);
+
+    try {
+      const response = await fetch('../code_back/back_deposito_observar.php', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        cerrarModalObservacion();
+        await Swal.fire('✅ Observado', result.message, 'success');
+        window.location.reload();
+      } else {
+        await Swal.fire('❌ Error', result.message, 'error');
+      }
+    } catch (error) {
+      console.error('Error al marcar como observado:', error);
+      await Swal.fire('❌ Error de red', 'No se pudo procesar la solicitud.', 'error');
+    }
+  });
+
+  // ========================================
+  // FIN MODAL OBSERVACIÓN
+  // ========================================
+
+  // ========================================
+  // ICONO CHECK VERDE - MARCAR COMO ATENDIDA (MAU)
+  // ========================================
+  document.addEventListener('click', async function(e) {
+    const icon = e.target.closest('.atender-observacion-icon');
+    if (!icon) return;
+
+    const idDeposito = parseInt(icon.dataset.iddep, 10);
+    const nDeposito = icon.dataset.deposito || '--';
+    const nExpediente = icon.dataset.expediente || '--';
+
+    // Confirmación con SweetAlert
+    const confirmResult = await Swal.fire({
+      title: '¿Marcar como Observación Atendida?',
+      html: `
+        <p style="margin: 10px 0;">
+          <strong>Depósito:</strong> ${nDeposito}<br>
+          <strong>Expediente:</strong> ${nExpediente}
+        </p>
+        <p style="margin-top: 15px;">Esto indicará que la observación ha sido resuelta.</p>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, marcar como atendida',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#28a745',
+      cancelButtonColor: '#6c757d'
+    });
+
+    if (!confirmResult.isConfirmed) return;
+
+    const formData = new FormData();
+    formData.append('id_deposito', idDeposito);
+
+    try {
+      const response = await fetch('../code_back/back_deposito_marcar_atendido.php', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        await Swal.fire('✅ Atendida', result.message, 'success');
+        window.location.reload();
+      } else {
+        await Swal.fire('❌ Error', result.message, 'error');
+      }
+    } catch (error) {
+      console.error('Error al marcar como atendida:', error);
+      await Swal.fire('❌ Error de red', 'No se pudo procesar la solicitud.', 'error');
+    }
+  });
+  // ========================================
+  // FIN ICONO CHECK VERDE
+  // ========================================
   </script>
 
   <script src="../js/listado_depositos.js" defer></script>
