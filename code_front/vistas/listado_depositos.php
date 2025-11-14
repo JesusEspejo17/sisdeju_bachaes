@@ -32,20 +32,6 @@ if (!$mostrarAnulados) {
 }
 
 // Filtro especial para MAU: si NO hay filtro de estado específico y es rol MAU (2),
-// mostrar primero los observados (estado 11), luego el resto
-$filtroObservadosMAU = false;
-if ($idRol === 2 && $filtroEstado === 'todos') {
-  // Verificar si hay depósitos OBSERVADOS (solo estado 11, no 12)
-  $checkObs = mysqli_query($cn, "SELECT COUNT(*) AS total FROM deposito_judicial WHERE estado_observacion = 11 AND id_estado != 10");
-  $rowObs = mysqli_fetch_assoc($checkObs);
-  if ($rowObs && (int)$rowObs['total'] > 0) {
-    // Hay observados pendientes: filtrar solo observados (estado 11)
-    $whereClauses[] = "dj.estado_observacion = 11";
-    $filtroObservadosMAU = true;
-  }
-  // Si no hay observados pendientes (11), mostrar todos (comportamiento normal)
-}
-
 // Rol específico (mantener tu condicion original)
 if ($idRol === 3) {
   $whereClauses[] = "dj.documento_secretario = '" . mysqli_real_escape_string($cn, $usuarioActual) . "' AND dj.id_estado != 4";
@@ -54,7 +40,8 @@ if ($idRol === 3) {
 // filtro por estado
 if ($filtroEstado !== 'todos') {
   switch ($filtroEstado) {
-    case 'pendientes':   $whereClauses[] = "dj.id_estado IN (3,5,6,8,9)"; break;
+    //case 'pendientes':   $whereClauses[] = "dj.id_estado IN (3,5,6,8,9)"; break;
+    case 'pendientes':   $whereClauses[] = "dj.id_estado IN (3,5,8)"; break;
     case 'porentregar':  $whereClauses[] = "dj.id_estado IN (2,7)"; break; // ahora incluye 2 y 7
     case 'entregados':   $whereClauses[] = "dj.id_estado = 1"; break;
     case 'recojo':       $whereClauses[] = "dj.id_estado = 6"; break;
@@ -186,6 +173,9 @@ $sqlBase = "
   LEFT JOIN persona bene  ON bene.documento = dj.documento_beneficiario
   $where
   ORDER BY
+    -- Primero: observados (estado_observacion = 11) aparecen al inicio
+    CASE WHEN dj.estado_observacion = 11 THEN 0 ELSE 1 END,
+    -- Luego: orden original (pendientes > por entregar > resto)
     CASE 
       WHEN dj.id_estado IN (3,5,6,8,9) THEN 0
       WHEN dj.id_estado IN (2,7) THEN 1
@@ -298,6 +288,29 @@ $showTo = ($perPage === 0) ? $totalRows : min($offset + $perPageUsed, $totalRows
       transform: scale(1.2);
       color: #218838 !important; /* Verde más oscuro al hover */
     }
+
+    /* hover en filas de la tabla */
+        table tbody tr:hover {
+            background-color: rgba(0, 123, 255, 0.1) !important;
+        }
+
+        /* ========== ANULAR HOVER PARA ESTADOS DE OBSERVACIÓN ========== */
+        /* Anular hover para OBSERVADO (11) - Mantiene color fucsia */
+        table#tabla-depositos tbody tr[data-estado-observacion="11"]:hover td {
+            background-color: #ff14912c !important; /* Mantiene el mismo color fucsia */
+        }
+
+        /* Anular hover para OBSERVACIÓN ATENDIDA (12) - Mantiene color naranja */
+        table#tabla-depositos tbody tr[data-estado-observacion="12"]:hover td {
+            background-color: #ff660079 !important; /* Mantiene el mismo color naranja */
+        }
+
+        /* input de búsqueda */
+        .dataTables_filter input {
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            padding: 5px 10px;
+        }
   </style>
 </head>
 <body>

@@ -48,6 +48,8 @@ try {
         p.apellido_persona AS apellido_beneficiario,
         p.telefono_persona AS telefono_beneficiario,
         p.correo_persona AS correo_beneficiario,
+        p.direccion_persona AS direccion_beneficiario,
+        p.foto_documento AS foto_beneficiario,
         
         CONCAT(sec.nombre_persona, ' ', sec.apellido_persona) AS nombre_secretario
         
@@ -153,6 +155,8 @@ try {
             'apellido_beneficiario' => $deposito['apellido_beneficiario'],
             'telefono_beneficiario' => $deposito['telefono_beneficiario'],
             'correo_beneficiario' => $deposito['correo_beneficiario'],
+            'direccion_beneficiario' => $deposito['direccion_beneficiario'],
+            'foto_beneficiario' => $deposito['foto_beneficiario'],
             'observacion' => $deposito['observacion']
         ],
         'secretarios' => $secretarios,

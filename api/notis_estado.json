@@ -5002,6 +5002,28 @@
             "n_expediente": "0000-2025-01",
             "fecha": "2025-11-12 20:31:13",
             "timestamp": 1762997473
+        },
+        {
+            "destinatario": "secretario",
+            "id_usuario": "47921265",
+            "titulo": "Nuevo Dep\u00f3sito",
+            "mensaje": "Dep\u00f3sito N\u00b0 (por asignar) - Expediente: 0000-2025-01",
+            "n_deposito": null,
+            "id_deposito": 571,
+            "n_expediente": "0000-2025-01",
+            "fecha": "2025-11-14 08:23:48",
+            "timestamp": 1763126628
+        },
+        {
+            "destinatario": "secretario",
+            "id_usuario": "47921265",
+            "titulo": "Nuevo Dep\u00f3sito",
+            "mensaje": "Dep\u00f3sito N\u00b0 (por asignar) - Expediente: 0000-2025-01",
+            "n_deposito": null,
+            "id_deposito": 572,
+            "n_expediente": "0000-2025-01",
+            "fecha": "2025-11-14 09:01:38",
+            "timestamp": 1763128898
         }
     ],
     "usuarios": {
@@ -5012,7 +5034,7 @@
             "last_read": 3
         },
         "47921265": {
-            "last_read": 353
+            "last_read": 355
         },
         "47003612": {
             "last_read": 12

@@ -1261,7 +1261,7 @@ async function abrirEdicionDeposito(icon) {
           <!-- Beneficiario seleccionado (info) -->
           <div id="edit_beneficiario_info" style="margin-top:8px; padding:10px; background:#f9f9f9; 
                border-radius:6px; display:${dep.documento_beneficiario ? 'block' : 'none'};">
-            <strong id="edit_benef_nombre">${escapeHtml(dep.nombre_beneficiario || '')} ${escapeHtml(dep.apellido_beneficiario || '')}</strong><br>
+            <strong id="edit_benef_nombre_display">${escapeHtml(dep.nombre_beneficiario || '')} ${escapeHtml(dep.apellido_beneficiario || '')}</strong><br>
             <small style="color:#666;">
               DNI: <span id="edit_benef_dni">${escapeHtml(dep.documento_beneficiario || '')}</span> | 
               Tel: <span id="edit_benef_tel">${escapeHtml(dep.telefono_beneficiario || '--')}</span>
@@ -1344,7 +1344,100 @@ async function abrirEdicionDeposito(icon) {
         </div>
         ` : '')}
 
-        <small style="display:block; margin-top:15px; color:#666;">* Campos obligatorios</small>
+        <!-- ========== SECCIÓN DE EDICIÓN DE BENEFICIARIO ========== -->
+        <div style="margin-top:20px; border-top:2px solid #ddd; padding-top:15px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h4 style="margin:0; color:#333;">Datos del Beneficiario</h4>
+            <button type="button" id="toggle-edit-beneficiario" 
+                    style="background:#840000; color:white; border:none; padding:8px 15px; border-radius:4px; cursor:pointer; font-size:14px;">
+              EDITAR BENEFICIARIO
+            </button>
+          </div>
+          
+          <!-- Resumen del beneficiario (visible siempre)
+          <div id="beneficiario-info-resumen" style="margin-top:10px; padding:10px; background:#f9f9f9; border-radius:6px;">
+            <strong id="benef-nombre-display">${escapeHtml(dep.nombre_beneficiario || '')} ${escapeHtml(dep.apellido_beneficiario || '')}</strong><br>
+            <small style="color:#666;">
+              DNI: <span id="benef-dni-display">${escapeHtml(dep.documento_beneficiario || '')}</span> | 
+              Tel: <span id="benef-tel-display">${escapeHtml(dep.telefono_beneficiario || '--')}</span> | 
+              Correo: <span id="benef-correo-display">${escapeHtml(dep.correo_beneficiario || '--')}</span>
+            </small>
+          </div> -->
+          
+          <!-- Formulario de edición (inicialmente oculto) -->
+          <div id="beneficiario-edit-form" style="display:none; margin-top:15px; padding:15px; background:#f0f8ff; border:1px solid #007bff; border-radius:6px;">
+            
+            <div style="display:flex; gap:10px; margin-bottom:10px;">
+              <div style="flex:1;">
+                <label style="font-weight:600;">Nombre *</label>
+                <input type="text" id="edit_benef_nombre" value="${escapeHtml(dep.nombre_beneficiario || '')}" 
+                       style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; text-transform:uppercase;">
+              </div>
+              <div style="flex:1;">
+                <label style="font-weight:600;">Apellido *</label>
+                <input type="text" id="edit_benef_apellido" value="${escapeHtml(dep.apellido_beneficiario || '')}" 
+                       style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; text-transform:uppercase;">
+              </div>
+            </div>
+            
+            <div style="display:flex; gap:10px; margin-bottom:10px;">
+              <div style="flex:1;">
+                <label style="font-weight:600;">Correo</label>
+                <input type="email" id="edit_benef_correo" value="${escapeHtml(dep.correo_beneficiario || '')}" 
+                       placeholder="ejemplo@correo.com"
+                       style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+              </div>
+              <div style="flex:1;">
+                <label style="font-weight:600;">Teléfono</label>
+                <input type="tel" id="edit_benef_telefono" value="${escapeHtml(dep.telefono_beneficiario || '')}" 
+                       maxlength="9" placeholder="987654321"
+                       style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+              </div>
+            </div>
+            
+            <div style="margin-bottom:10px;">
+              <label style="font-weight:600;">Dirección</label>
+              <input type="text" id="edit_benef_direccion" value="${escapeHtml(dep.direccion_beneficiario || '')}" 
+                     placeholder="Av. Lima 123, San Juan de Lurigancho"
+                     style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; text-transform:uppercase;">
+            </div>
+            
+            <!-- Foto -->
+            <div style="display:flex; gap:15px; align-items:start; margin-bottom:10px;">
+              <div>
+                <label style="font-weight:600; display:block; margin-bottom:5px;">Foto actual</label>
+                <div style="width:100px; height:100px; border:1px solid #ddd; border-radius:4px; overflow:hidden; background:#fff;">
+                  ${dep.foto_beneficiario ? `
+                    <img id="benef-foto-actual" src="../${escapeHtml(dep.foto_beneficiario)}" 
+                         style="width:100%; height:100%; object-fit:contain;">
+                  ` : `
+                    <div style="display:flex; align-items:center; justify-content:center; height:100%; color:#999; font-size:11px; text-align:center;">
+                      Sin foto
+                    </div>
+                  `}
+                </div>
+              </div>
+              <div style="flex:1;">
+                <label style="font-weight:600; display:block; margin-bottom:5px;">Subir nueva foto (opcional)</label>
+                <input type="file" id="edit_benef_foto" accept="image/png,image/jpeg" 
+                       style="width:100%; padding:6px; border:1px solid #ddd; border-radius:4px; background:#fff;">
+                <small style="display:block; color:#666; margin-top:4px;">Máx 5 MB. Formatos: PNG, JPG</small>
+                
+                <!-- Preview de nueva foto -->
+                <div id="benef-foto-preview" style="display:none; margin-top:10px; width:100px; height:100px; border:1px solid #007bff; border-radius:4px; overflow:hidden;">
+                  <img id="benef-foto-preview-img" src="" style="width:100%; height:100%; object-fit:contain;">
+                </div>
+              </div>
+            </div>
+            
+            <small style="display:block; color:#666; margin-top:10px;">
+              <strong>Nota:</strong> Los cambios en los datos del beneficiario se aplicarán al hacer clic en "Guardar cambios" al final del formulario.
+            </small>
+          </div>
+        </div>
+        <!-- ========== FIN SECCIÓN DE EDICIÓN DE BENEFICIARIO ========== -->
+
+        <!--<small style="display:block; margin-top:15px; color:#666;">* Campos obligatorios</small>-->
       </div>
     `;
 
@@ -1408,10 +1501,14 @@ async function abrirEdicionDeposito(icon) {
               beneficiarioSeleccionado = b.documento;
               
               // Actualizar info
-              document.getElementById('edit_benef_nombre').textContent = b.nombre_completo;
+              document.getElementById('edit_benef_nombre_display').textContent = b.nombre_completo;
               document.getElementById('edit_benef_dni').textContent = b.documento;
               document.getElementById('edit_benef_tel').textContent = b.telefono || '--';
               benefInfo.style.display = 'block';
+              
+              // ========== ACTUALIZAR DATOS DEL BENEFICIARIO EN EL FORMULARIO ==========
+              actualizarDatosBeneficiarioEnFormulario(b.documento);
+              // ========== FIN ACTUALIZACIÓN ==========
               
               // Ocultar lista
               listaBenef.style.display = 'none';
@@ -1501,8 +1598,162 @@ async function abrirEdicionDeposito(icon) {
         } catch (e) {
           console.warn('Error preseleccionando juzgado/secretario', e);
         }
+
+        // ========== TOGGLE Y PREVIEW DE EDICIÓN DE BENEFICIARIO ==========
+        const toggleBtn = document.getElementById('toggle-edit-beneficiario');
+        const benefEditForm = document.getElementById('beneficiario-edit-form');
+        const inputFotoBenef = document.getElementById('edit_benef_foto');
+        const previewDiv = document.getElementById('benef-foto-preview');
+        const previewImg = document.getElementById('benef-foto-preview-img');
+
+        // Toggle del formulario de edición de beneficiario
+        if (toggleBtn && benefEditForm) {
+          toggleBtn.addEventListener('click', function() {
+            const isHidden = benefEditForm.style.display === 'none';
+            benefEditForm.style.display = isHidden ? 'block' : 'none';
+            toggleBtn.textContent = isHidden ? 'Ocultar' : '✏️ Editar Beneficiario';
+          });
+        }
+
+        // Preview de foto nueva del beneficiario
+        if (inputFotoBenef && previewDiv && previewImg) {
+          inputFotoBenef.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            
+            if (!file) {
+              previewDiv.style.display = 'none';
+              return;
+            }
+
+            // Validar tamaño (máx 5 MB)
+            if (file.size > 5 * 1024 * 1024) {
+              Swal.fire('Atención', 'La foto no puede superar los 5 MB.', 'warning');
+              this.value = '';
+              previewDiv.style.display = 'none';
+              return;
+            }
+
+            // Validar tipo (solo PNG/JPG)
+            if (!file.type.match(/^image\/(png|jpeg)$/)) {
+              Swal.fire('Atención', 'Solo se permiten archivos PNG o JPG.', 'warning');
+              this.value = '';
+              previewDiv.style.display = 'none';
+              return;
+            }
+
+            // Mostrar preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+              previewImg.src = e.target.result;
+              previewDiv.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+          });
+        }
+
+        // Auto-uppercase para nombre, apellido y dirección
+        const nombreInput = document.getElementById('edit_benef_nombre');
+        const apellidoInput = document.getElementById('edit_benef_apellido');
+        const direccionInput = document.getElementById('edit_benef_direccion');
+
+        if (nombreInput) {
+          nombreInput.addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+          });
+        }
+
+        if (apellidoInput) {
+          apellidoInput.addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+          });
+        }
+
+        if (direccionInput) {
+          direccionInput.addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+          });
+        }
+
+        // Validación de teléfono (solo números, máx 9 dígitos)
+        const telefonoInput = document.getElementById('edit_benef_telefono');
+        if (telefonoInput) {
+          telefonoInput.addEventListener('input', function() {
+            this.value = this.value.replace(/\D/g, '').substring(0, 9);
+          });
+        }
+        
+        // ========== FUNCIÓN PARA ACTUALIZAR DATOS DEL BENEFICIARIO ==========
+        function actualizarDatosBeneficiarioEnFormulario(documento) {
+          console.log('🔄 Cargando datos del beneficiario:', documento);
+          
+          // Hacer fetch para obtener datos completos del beneficiario
+          fetch('../code_back/get_datos_beneficiario.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'documento=' + encodeURIComponent(documento)
+          })
+          .then(response => response.json())
+          .then(data => {
+            console.log('✅ Datos del beneficiario recibidos:', data);
+            
+            if (data.success && data.beneficiario) {
+              const benef = data.beneficiario;
+              
+              // Actualizar resumen en la sección de "Datos del Beneficiario"
+              const nombreDisplay = document.getElementById('benef-nombre-display');
+              const dniDisplay = document.getElementById('benef-dni-display');
+              const telDisplay = document.getElementById('benef-tel-display');
+              const correoDisplay = document.getElementById('benef-correo-display');
+              
+              if (nombreDisplay) nombreDisplay.textContent = `${benef.nombre_persona || ''} ${benef.apellido_persona || ''}`;
+              if (dniDisplay) dniDisplay.textContent = documento;
+              if (telDisplay) telDisplay.textContent = benef.telefono_persona || '--';
+              if (correoDisplay) correoDisplay.textContent = benef.correo_persona || '--';
+              
+              // Actualizar formulario de edición
+              const nombreInput = document.getElementById('edit_benef_nombre');
+              const apellidoInput = document.getElementById('edit_benef_apellido');
+              const correoInput = document.getElementById('edit_benef_correo');
+              const telefonoInputUpd = document.getElementById('edit_benef_telefono');
+              const direccionInput = document.getElementById('edit_benef_direccion');
+              
+              if (nombreInput) nombreInput.value = benef.nombre_persona || '';
+              if (apellidoInput) apellidoInput.value = benef.apellido_persona || '';
+              if (correoInput) correoInput.value = benef.correo_persona || '';
+              if (telefonoInputUpd) telefonoInputUpd.value = benef.telefono_persona || '';
+              if (direccionInput) direccionInput.value = benef.direccion_persona || '';
+              
+              // Actualizar preview de foto
+              const fotoActual = document.getElementById('benef-foto-actual');
+              if (fotoActual) {
+                if (benef.foto_documento) {
+                  fotoActual.src = '../' + benef.foto_documento;
+                  console.log('✅ Foto actualizada:', benef.foto_documento);
+                } else {
+                  // Si no hay foto, mostrar placeholder
+                  fotoActual.src = '../code_back/uploads/beneficiarios/default-avatar.png';
+                  console.log('⚠️ No hay foto para este beneficiario');
+                }
+              } else {
+                console.warn('⚠️ No se encontró el elemento benef-foto-actual');
+              }
+              
+              console.log('✅ Formulario de beneficiario actualizado');
+            } else {
+              console.error('❌ Error obteniendo datos del beneficiario:', data.msg || 'Sin datos');
+            }
+          })
+          .catch(error => {
+            console.error('❌ Error en fetch de beneficiario:', error);
+          });
+        }
+        // ========== FIN FUNCIÓN ACTUALIZAR BENEFICIARIO ==========
+        
+        // ========== FIN TOGGLE Y PREVIEW DE EDICIÓN DE BENEFICIARIO ==========
       },
       preConfirm: () => {
+        console.log('=== INICIO preConfirm ===');
+        
         const benefDocVal = document.getElementById('edit_beneficiario_documento').value.trim();
         const exp1Val = document.getElementById('edit_exp1').value.trim();
         const exp2Val = document.getElementById('edit_exp2').value.trim();
@@ -1516,47 +1767,154 @@ async function abrirEdicionDeposito(icon) {
         const observacionInput = document.getElementById('edit_observacion');
         const observacionVal = (observacionInput && (rolUsuario === 1 || rolUsuario === 2)) ? observacionInput.value.trim() : undefined;
 
-        // Validaciones
+        console.log('Valores del depósito:', {
+          benefDocVal,
+          exp1Val,
+          exp2Val,
+          exp3Val,
+          depositoVal,
+          secretarioVal,
+          juzgadoSelVal,
+          fechaRecojoVal,
+          observacionVal
+        });
+
+        // ========== RECOPILAR DATOS DEL BENEFICIARIO ==========
+        console.log('Intentando obtener elementos del beneficiario...');
+        
+        const benefNombreInput = document.getElementById('edit_benef_nombre');
+        console.log('benefNombreInput:', benefNombreInput);
+        
+        const benefApellidoInput = document.getElementById('edit_benef_apellido');
+        console.log('benefApellidoInput:', benefApellidoInput);
+        
+        const benefCorreoInput = document.getElementById('edit_benef_correo');
+        console.log('benefCorreoInput:', benefCorreoInput);
+        
+        const benefTelefonoInput = document.getElementById('edit_benef_telefono');
+        console.log('benefTelefonoInput:', benefTelefonoInput);
+        
+        const benefDireccionInput = document.getElementById('edit_benef_direccion');
+        console.log('benefDireccionInput:', benefDireccionInput);
+        
+        const benefNombreVal = benefNombreInput ? benefNombreInput.value.trim() : '';
+        const benefApellidoVal = benefApellidoInput ? benefApellidoInput.value.trim() : '';
+        const benefCorreoVal = benefCorreoInput ? benefCorreoInput.value.trim() : '';
+        const benefTelefonoVal = benefTelefonoInput ? benefTelefonoInput.value.trim() : '';
+        const benefDireccionVal = benefDireccionInput ? benefDireccionInput.value.trim() : '';
+        
+        console.log('Valores del beneficiario:', {
+          benefNombreVal,
+          benefApellidoVal,
+          benefCorreoVal,
+          benefTelefonoVal,
+          benefDireccionVal
+        });
+        
+        const benefFotoInput = document.getElementById('edit_benef_foto');
+        console.log('benefFotoInput:', benefFotoInput);
+        
+        const benefFotoFile = benefFotoInput && benefFotoInput.files.length > 0 ? benefFotoInput.files[0] : null;
+        console.log('benefFotoFile:', benefFotoFile);
+        // ========== FIN RECOPILACIÓN DATOS DEL BENEFICIARIO ==========
+
+        // Validaciones de depósito
+        console.log('=== VALIDACIONES DEPÓSITO ===');
         if (!benefDocVal) {
+          console.log('ERROR: Falta beneficiario');
           Swal.showValidationMessage('Debe seleccionar un beneficiario');
           return false;
         }
+        console.log('✓ Beneficiario seleccionado');
         
         if (!exp1Val || !exp2Val || !exp3Val) {
+          console.log('ERROR: Falta expediente');
           Swal.showValidationMessage('El número de expediente es obligatorio (3 partes)');
           return false;
-               }
+        }
+        console.log('✓ Expediente completo');
         
         if (!juzgadoSelVal) {
+          console.log('ERROR: Falta juzgado');
           Swal.showValidationMessage('Debe seleccionar un Juzgado');
           return false;
         }
+        console.log('✓ Juzgado seleccionado');
 
         if (!secretarioVal) {
+          console.log('ERROR: Falta secretario');
           Swal.showValidationMessage('Debe seleccionar un secretario');
           return false;
         }
+        console.log('✓ Secretario seleccionado');
         
         if (depositoVal && depositoVal.length !== 13) {
+          console.log('ERROR: Depósito inválido:', depositoVal);
           Swal.showValidationMessage('Si ingresa número de depósito, debe tener exactamente 13 dígitos');
           return false;
         }
+        console.log('✓ Número de depósito válido');
 
-        return {
+        // Validaciones de beneficiario (solo si se está editando)
+        console.log('=== VALIDACIONES BENEFICIARIO ===');
+        if (benefNombreVal && !benefNombreVal.match(/^[A-ZÀ-ÿ\s]+$/i)) {
+          console.log('ERROR: Nombre inválido:', benefNombreVal);
+          Swal.showValidationMessage('El nombre solo puede contener letras');
+          return false;
+        }
+        console.log('✓ Nombre válido');
+
+        if (benefApellidoVal && !benefApellidoVal.match(/^[A-ZÀ-ÿ\s]+$/i)) {
+          console.log('ERROR: Apellido inválido:', benefApellidoVal);
+          Swal.showValidationMessage('El apellido solo puede contener letras');
+          return false;
+        }
+        console.log('✓ Apellido válido');
+
+        if (benefCorreoVal && !benefCorreoVal.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+          console.log('ERROR: Correo inválido:', benefCorreoVal);
+          Swal.showValidationMessage('El correo electrónico no es válido');
+          return false;
+        }
+        console.log('✓ Correo válido');
+
+        if (benefTelefonoVal && (benefTelefonoVal.length !== 9 || !benefTelefonoVal.match(/^\d{9}$/))) {
+          console.log('ERROR: Teléfono inválido:', benefTelefonoVal);
+          Swal.showValidationMessage('El teléfono debe tener exactamente 9 dígitos');
+          return false;
+        }
+        console.log('✓ Teléfono válido');
+        console.log('=== TODAS LAS VALIDACIONES COMPLETADAS ===');
+
+        const returnData = {
+          // Datos del depósito
           beneficiario: benefDocVal,
           expediente: `${exp1Val}-${exp2Val}-${exp3Val}`,
           deposito: depositoVal,
           secretario: secretarioVal,
           id_juzgado: juzgadoSelVal,
           fecha_recojo: fechaRecojoVal,
-          observacion: observacionVal
+          observacion: observacionVal,
+          // Datos del beneficiario
+          benef_nombre: benefNombreVal,
+          benef_apellido: benefApellidoVal,
+          benef_correo: benefCorreoVal,
+          benef_telefono: benefTelefonoVal,
+          benef_direccion: benefDireccionVal,
+          benef_foto: benefFotoFile
         };
+        
+        console.log('=== RETORNANDO DATOS ===', returnData);
+        return returnData;
       }
     });
+
+    console.log('=== RESULTADO MODAL ===', modalResult);
 
     if (!modalResult.isConfirmed) return;
 
     const valores = modalResult.value;
+    console.log('=== VALORES CONFIRMADOS ===', valores);
 
     // Mostrar loading mientras se guarda
     Swal.fire({
@@ -1577,12 +1935,44 @@ async function abrirEdicionDeposito(icon) {
       if (valores.fecha_recojo && puedeEditarFechaRecojo) formData.append('fecha_recojo', valores.fecha_recojo);
       if (valores.observacion !== undefined) formData.append('observacion', valores.observacion);
 
+      // ========== AGREGAR DATOS DEL BENEFICIARIO AL FORMDATA ==========
+      console.log('=== PREPARANDO FORMDATA BENEFICIARIO ===');
+      if (valores.benef_nombre) {
+        console.log('Agregando benef_nombre:', valores.benef_nombre);
+        formData.append('benef_nombre', valores.benef_nombre);
+      }
+      if (valores.benef_apellido) {
+        console.log('Agregando benef_apellido:', valores.benef_apellido);
+        formData.append('benef_apellido', valores.benef_apellido);
+      }
+      if (valores.benef_correo) {
+        console.log('Agregando benef_correo:', valores.benef_correo);
+        formData.append('benef_correo', valores.benef_correo);
+      }
+      if (valores.benef_telefono) {
+        console.log('Agregando benef_telefono:', valores.benef_telefono);
+        formData.append('benef_telefono', valores.benef_telefono);
+      }
+      if (valores.benef_direccion) {
+        console.log('Agregando benef_direccion:', valores.benef_direccion);
+        formData.append('benef_direccion', valores.benef_direccion);
+      }
+      if (valores.benef_foto) {
+        console.log('Agregando benef_foto:', valores.benef_foto);
+        formData.append('benef_foto', valores.benef_foto);
+      }
+      console.log('=== FORMDATA BENEFICIARIO COMPLETO ===');
+      // ========== FIN DATOS DEL BENEFICIARIO ==========
+
+      console.log('=== ENVIANDO REQUEST A back_deposito_editar.php ===');
       const saveResponse = await fetch('../code_back/back_deposito_editar.php', {
         method: 'POST',
         body: formData
       });
 
+      console.log('=== RESPUESTA RECIBIDA ===', saveResponse);
       const saveData = await saveResponse.json();
+      console.log('=== DATOS PARSEADOS ===', saveData);
 
       if (saveData.success) {
         await Swal.fire({
