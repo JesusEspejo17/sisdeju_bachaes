@@ -231,6 +231,42 @@ try {
   $stmt2->execute();
   $stmt2->close();
 
+  // ========== RESETEAR OBSERVACIÓN ATENDIDA (estado_observacion=12) ==========
+  // Si el depósito tiene estado_observacion=12 (OBSERVACIÓN ATENDIDA), al cambiar el estado principal
+  // significa que la observación ya fue resuelta, por lo que reseteamos estado_observacion y motivo_observacion
+  $checkObs = $cn->prepare("SELECT estado_observacion, motivo_observacion FROM deposito_judicial WHERE id_deposito = ?");
+  $checkObs->bind_param("i", $id_deposito);
+  $checkObs->execute();
+  $resObs = $checkObs->get_result();
+  $obsData = $resObs->fetch_assoc();
+  $checkObs->close();
+  
+  if ($obsData && $obsData['estado_observacion'] == 12) {
+    // Resetear observación
+    $resetObs = $cn->prepare("UPDATE deposito_judicial SET estado_observacion = NULL, motivo_observacion = NULL WHERE id_deposito = ?");
+    $resetObs->bind_param("i", $id_deposito);
+    $resetObs->execute();
+    $resetObs->close();
+    
+    // Registrar en historial que la observación fue resuelta
+    $motivoOriginal = $obsData['motivo_observacion'] ? mysqli_real_escape_string($cn, $obsData['motivo_observacion']) : 'Sin motivo registrado';
+    
+    if ($colComentario && $colTipoEvento && $colUsuario) {
+      $insertObsResuelto = "INSERT INTO historial_deposito (id_deposito, $colTipoEvento, $colComentario, $colUsuario";
+      if ($colFechaHist) $insertObsResuelto .= ", $colFechaHist";
+      $insertObsResuelto .= ") VALUES (?, 'OBSERVACION_RESUELTA', ?, ?";
+      if ($colFechaHist) $insertObsResuelto .= ", NOW()";
+      $insertObsResuelto .= ")";
+      
+      $stmtObsHist = $cn->prepare($insertObsResuelto);
+      $comentarioObsResuelto = "Observación cerrada automáticamente al cambiar estado. Motivo original: {$motivoOriginal}";
+      $stmtObsHist->bind_param("iss", $id_deposito, $comentarioObsResuelto, $usuarioNombre);
+      $stmtObsHist->execute();
+      $stmtObsHist->close();
+    }
+  }
+  // ========== FIN RESETEO OBSERVACIÓN ==========
+
   // confirmar transacción
   $cn->commit();
   $inTx = false;

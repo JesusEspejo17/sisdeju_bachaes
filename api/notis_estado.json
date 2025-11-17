@@ -5024,6 +5024,17 @@
             "n_expediente": "0000-2025-01",
             "fecha": "2025-11-14 09:01:38",
             "timestamp": 1763128898
+        },
+        {
+            "destinatario": "secretario",
+            "id_usuario": "47921265",
+            "titulo": "Nuevo Dep\u00f3sito",
+            "mensaje": "Dep\u00f3sito N\u00b0 (por asignar) - Expediente: 1000-2000-10",
+            "n_deposito": null,
+            "id_deposito": 573,
+            "n_expediente": "1000-2000-10",
+            "fecha": "2025-11-14 12:38:42",
+            "timestamp": 1763141922
         }
     ],
     "usuarios": {
@@ -5034,7 +5045,7 @@
             "last_read": 3
         },
         "47921265": {
-            "last_read": 355
+            "last_read": 356
         },
         "47003612": {
             "last_read": 12

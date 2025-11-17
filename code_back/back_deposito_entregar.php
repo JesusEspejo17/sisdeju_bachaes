@@ -27,6 +27,25 @@ try {
   $sql = "UPDATE deposito_judicial SET id_estado = 1 WHERE id_deposito = '$id_dep'";
   if (!mysqli_query($cn, $sql)) throw new Exception("Error al cambiar estado");
 
+  // ========== RESETEAR OBSERVACIÓN ATENDIDA (estado_observacion=12) ==========
+  $checkObs = mysqli_query($cn, "SELECT estado_observacion, motivo_observacion FROM deposito_judicial WHERE id_deposito = '$id_dep'");
+  $obsData = mysqli_fetch_assoc($checkObs);
+  
+  if ($obsData && $obsData['estado_observacion'] == 12) {
+    // Resetear observación
+    mysqli_query($cn, "UPDATE deposito_judicial SET estado_observacion = NULL, motivo_observacion = NULL WHERE id_deposito = '$id_dep'");
+    
+    // Registrar en historial
+    $motivoOriginal = $obsData['motivo_observacion'] ? mysqli_real_escape_string($cn, $obsData['motivo_observacion']) : 'Sin motivo registrado';
+    $comentarioObsResuelto = "Observación cerrada automáticamente al cambiar estado. Motivo original: {$motivoOriginal}";
+    
+    mysqli_query($cn, "
+      INSERT INTO historial_deposito (id_deposito, documento_usuario, fecha_historial_deposito, tipo_evento, comentario_deposito)
+      VALUES ('$id_dep', '$usuario', NOW(), 'OBSERVACION_RESUELTA', '$comentarioObsResuelto')
+    ");
+  }
+  // ========== FIN RESETEO OBSERVACIÓN ==========
+
   $ins_hist = "INSERT INTO historial_deposito (
     id_deposito,
     documento_usuario,

@@ -363,6 +363,27 @@ try {
         if (!mysqli_stmt_execute($updSt)) { $err = mysqli_error($cn); mysqli_stmt_close($updSt); throw new Exception("Error al actualizar depósito: $err"); }
         mysqli_stmt_close($updSt);
 
+        // ========== RESETEAR OBSERVACIÓN ATENDIDA (estado_observacion=12) ==========
+        if ($estadoPrev !== $newEstado) {
+            $checkObs = mysqli_query($cn, "SELECT estado_observacion, motivo_observacion FROM deposito_judicial WHERE id_deposito = $rowId");
+            $obsData = mysqli_fetch_assoc($checkObs);
+            
+            if ($obsData && $obsData['estado_observacion'] == 12) {
+                // Resetear observación
+                mysqli_query($cn, "UPDATE deposito_judicial SET estado_observacion = NULL, motivo_observacion = NULL WHERE id_deposito = $rowId");
+                
+                // Registrar en historial
+                $motivoOriginal = $obsData['motivo_observacion'] ? mysqli_real_escape_string($cn, $obsData['motivo_observacion']) : 'Sin motivo registrado';
+                $comentarioObsResuelto = "Observación cerrada automáticamente al subir PDF. Motivo original: {$motivoOriginal}";
+                
+                mysqli_query($cn, "
+                    INSERT INTO historial_deposito (id_deposito, documento_usuario, fecha_historial_deposito, tipo_evento, comentario_deposito)
+                    VALUES ($rowId, '$usuario', NOW(), 'OBSERVACION_RESUELTA', '$comentarioObsResuelto')
+                ");
+            }
+        }
+        // ========== FIN RESETEO OBSERVACIÓN ==========
+
         $finalN_first = $firstOrdenN;
 
         // insertar historial para la fila origen si su estado previo no era equal al nuevoEstado

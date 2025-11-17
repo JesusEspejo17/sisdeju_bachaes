@@ -87,6 +87,35 @@ try {
     }
     $stmt2->close();
 
+    // ========== RESETEAR OBSERVACIÓN ATENDIDA (estado_observacion=12) ==========
+    $checkObs = $cn->prepare("SELECT estado_observacion, motivo_observacion FROM deposito_judicial WHERE id_deposito = ?");
+    $checkObs->bind_param("i", $id_deposito);
+    $checkObs->execute();
+    $resObs = $checkObs->get_result();
+    $obsData = $resObs->fetch_assoc();
+    $checkObs->close();
+    
+    if ($obsData && $obsData['estado_observacion'] == 12) {
+        // Resetear observación
+        $resetObs = $cn->prepare("UPDATE deposito_judicial SET estado_observacion = NULL, motivo_observacion = NULL WHERE id_deposito = ?");
+        $resetObs->bind_param("i", $id_deposito);
+        $resetObs->execute();
+        $resetObs->close();
+        
+        // Registrar en historial
+        $motivoOriginal = $obsData['motivo_observacion'] ? mysqli_real_escape_string($cn, $obsData['motivo_observacion']) : 'Sin motivo registrado';
+        $comentarioObsResuelto = "Observación cerrada automáticamente al cancelar registro. Motivo original: {$motivoOriginal}";
+        
+        $stmtObsHist = $cn->prepare("
+            INSERT INTO historial_deposito (id_deposito, documento_usuario, fecha_historial_deposito, tipo_evento, comentario_deposito)
+            VALUES (?, ?, NOW(), 'OBSERVACION_RESUELTA', ?)
+        ");
+        $stmtObsHist->bind_param("iss", $id_deposito, $usuarioDoc, $comentarioObsResuelto);
+        $stmtObsHist->execute();
+        $stmtObsHist->close();
+    }
+    // ========== FIN RESETEO OBSERVACIÓN ==========
+
     // 4) Registrar historial
     $comentario  = "⚠️ El secretario canceló el registro de orden (estado $estadoAnterior → 3); se eliminaron los archivos adjuntos.";
     $tipoEvento  = "CANCELACION_ORDEN";
