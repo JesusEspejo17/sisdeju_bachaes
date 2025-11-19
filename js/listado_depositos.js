@@ -947,6 +947,20 @@ function extractDepositFromFirmaFilename(filename) {
     cont.appendChild(btnRecojo);
   }
 
+  // Añadir Nueva Orden (rol 3, estado en GrupoB)
+  if (typeof rolActual !== 'undefined' && rolActual === 3 && stateAsGroupB) {
+    const btnAgregar = document.createElement("button");
+    btnAgregar.textContent = "Añadir Nueva Orden";
+    btnAgregar.className   = "chat-action-btn btn-verde";
+    if (idDep) {
+      btnAgregar.onclick = () => mostrarModalAgregarOrden(idDep);
+    } else {
+      btnAgregar.disabled = true;
+      btnAgregar.title = "Falta número de depósito (id_deposito)";
+    }
+    cont.appendChild(btnAgregar);
+  }
+
   // Cancelar registro + borrar PDF (rol 3, estado en GrupoB)
   if (typeof rolActual !== 'undefined' && rolActual === 3 && stateAsGroupB) {
     const btnCancel = document.createElement("button");
@@ -1086,6 +1100,119 @@ function confirmarEntregar(dep) {
     .then(j => {
       Swal.fire(j.success ? 'Entregado' : 'Error', j.msg || j.message, j.success ? 'success' : 'error')
         .then(() => { if (j.success) location.reload(); });
+    });
+  });
+}
+
+function mostrarModalAgregarOrden(dep) {
+  Swal.fire({
+    title: 'Añadir Nueva Orden',
+    html: `
+      <div style="text-align: left; padding: 15px;">
+        <p style="margin-bottom: 15px; color: #555;">
+          Sube los archivos PDF de la orden de pago y resolución adicionales. 
+          Se creará un nuevo registro con el mismo expediente.
+        </p>
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+            Orden de Pago (PDF): <span style="color: red;">*</span>
+          </label>
+          <input 
+            type="file" 
+            id="nueva-orden-pdf" 
+            accept="application/pdf" 
+            style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"
+          />
+        </div>
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+            Resolución (PDF): <span style="color: red;">*</span>
+          </label>
+          <input 
+            type="file" 
+            id="nueva-resolucion-pdf" 
+            accept="application/pdf" 
+            style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"
+          />
+        </div>
+      </div>
+    `,
+    icon: 'info',
+    showCancelButton: true,
+    confirmButtonText: 'Subir Archivos',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#28a745',
+    preConfirm: () => {
+      const ordenFile = document.getElementById('nueva-orden-pdf').files[0];
+      const resolFile = document.getElementById('nueva-resolucion-pdf').files[0];
+
+      if (!ordenFile || !resolFile) {
+        Swal.showValidationMessage('Debes seleccionar ambos archivos PDF');
+        return false;
+      }
+
+      // Validar que sean PDFs
+      if (!ordenFile.name.toLowerCase().endsWith('.pdf')) {
+        Swal.showValidationMessage('El archivo de orden debe ser PDF');
+        return false;
+      }
+      if (!resolFile.name.toLowerCase().endsWith('.pdf')) {
+        Swal.showValidationMessage('El archivo de resolución debe ser PDF');
+        return false;
+      }
+
+      // Validar tamaño (12MB max)
+      const maxSize = 12 * 1024 * 1024;
+      if (ordenFile.size > maxSize || resolFile.size > maxSize) {
+        Swal.showValidationMessage('Los archivos no deben exceder 12MB');
+        return false;
+      }
+
+      return { ordenFile, resolFile };
+    }
+  }).then(result => {
+    if (!result.isConfirmed) return;
+
+    const { ordenFile, resolFile } = result.value;
+
+    // Mostrar loading
+    Swal.fire({
+      title: 'Subiendo archivos...',
+      html: 'Por favor espera mientras se procesan los archivos.',
+      allowOutsideClick: false,
+      didOpen: () => { Swal.showLoading(); }
+    });
+
+    // Preparar FormData
+    const formData = new FormData();
+    formData.append('id_deposito', dep);
+    formData.append('orden_pdf', ordenFile);
+    formData.append('resolucion_pdf', resolFile);
+
+    // Enviar al backend
+    fetch('../code_back/back_deposito_agregar_orden_adicional.php', {
+      method: 'POST',
+      body: formData
+    })
+    .then(res => res.json())
+    .then(j => {
+      if (j.success) {
+        Swal.fire({
+          title: '✅ Orden Agregada',
+          html: `${j.msg}<br><br>Se creó un nuevo registro con ID: <strong>${j.id_deposito_nuevo}</strong>`,
+          icon: 'success',
+          confirmButtonText: 'Aceptar'
+        }).then(() => {
+          cerrarModalChat();
+          location.reload();
+        });
+      } else {
+        Swal.fire('❌ Error', j.msg || 'No se pudo agregar la orden', 'error');
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      Swal.fire('❌ Error de red', err.message || 'Error al subir los archivos', 'error');
     });
   });
 }

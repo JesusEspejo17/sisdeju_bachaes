@@ -5079,6 +5079,50 @@
             "n_expediente": "0000-2025-01",
             "fecha": "2025-11-18 16:40:05",
             "timestamp": 1763502005
+        },
+        {
+            "destinatario": "secretario",
+            "id_usuario": "15631018",
+            "titulo": "Nuevo Dep\u00f3sito",
+            "mensaje": "Dep\u00f3sito N\u00b0 (por asignar) - Expediente: 4418-2022-36",
+            "n_deposito": null,
+            "id_deposito": 555,
+            "n_expediente": "4418-2022-36",
+            "fecha": "2025-11-19 09:54:37",
+            "timestamp": 1763564077
+        },
+        {
+            "destinatario": "secretario",
+            "id_usuario": "47921265",
+            "titulo": "Nuevo Dep\u00f3sito",
+            "mensaje": "Dep\u00f3sito N\u00b0 (por asignar) - Expediente: 6419-2024-58",
+            "n_deposito": null,
+            "id_deposito": 556,
+            "n_expediente": "6419-2024-58",
+            "fecha": "2025-11-19 09:55:20",
+            "timestamp": 1763564120
+        },
+        {
+            "destinatario": "secretario",
+            "id_usuario": "47921265",
+            "titulo": "Nuevo Dep\u00f3sito",
+            "mensaje": "Dep\u00f3sito N\u00b0 (por asignar) - Expediente: 2804-2024-88",
+            "n_deposito": null,
+            "id_deposito": 558,
+            "n_expediente": "2804-2024-88",
+            "fecha": "2025-11-19 10:04:22",
+            "timestamp": 1763564662
+        },
+        {
+            "destinatario": "secretario",
+            "id_usuario": "47921265",
+            "titulo": "Nuevo Dep\u00f3sito",
+            "mensaje": "Dep\u00f3sito N\u00b0 (por asignar) - Expediente: 5131-2023-16",
+            "n_deposito": null,
+            "id_deposito": 567,
+            "n_expediente": "5131-2023-16",
+            "fecha": "2025-11-19 10:49:23",
+            "timestamp": 1763567363
         }
     ],
     "usuarios": {
@@ -5089,7 +5133,7 @@
             "last_read": 3
         },
         "47921265": {
-            "last_read": 360
+            "last_read": 363
         },
         "47003612": {
             "last_read": 12

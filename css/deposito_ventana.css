@@ -112,6 +112,33 @@
   background-color: #00bfff; /* Celeste */
 }
 
+/* Botón verde para añadir nueva orden */
+#modal-chat .chat-action-btn.btn-verde {
+  background-color: #28a745; /* Verde */
+}
+
+#modal-chat .chat-action-btn.btn-verde:hover {
+  background-color: #218838; /* Verde oscuro */
+}
+
+/* Botón rojo para cancelar registro */
+#modal-chat .chat-action-btn.btn-rojo {
+  background-color: #dc3545; /* Rojo */
+}
+
+#modal-chat .chat-action-btn.btn-rojo:hover {
+  background-color: #c82333; /* Rojo oscuro */
+}
+
+/* Botón azul oscuro para entregar */
+#modal-chat .chat-action-btn.btn-azul-oscuro {
+  background-color: #002b58; /* Azul oscuro */
+}
+
+#modal-chat .chat-action-btn.btn-azul-oscuro:hover {
+  background-color: #00bfff; /* Celeste */
+}
+
 /* Botón especial Cerrar (debajo del chat) */
 #modal-chat #chat-cerrar-btn {
   margin-top: 15px;
