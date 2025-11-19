@@ -488,7 +488,7 @@ try {
         }
 
         // columnas a excluir de la copia automática
-        $exclude = ['id_deposito', 'n_deposito', 'orden_pdf', 'resolucion_pdf'];
+        $exclude = ['id_deposito', 'n_deposito', 'orden_pdf', 'resolucion_pdf', 'estado_observacion', 'motivo_observacion', 'fecha_observacion', 'fecha_atencion_observacion'];
         // construir lista de columnas que vamos a insertar (todos menos exclusiones)
         $copyCols = array_values(array_filter($cols, function($col) use ($exclude) { return !in_array($col, $exclude); }));
 
