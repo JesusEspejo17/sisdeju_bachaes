@@ -36,31 +36,85 @@ try {
     
     $offset = ($page - 1) * $limit;
     
-    // Parámetros de filtro
-    $filtroEstado = isset($_GET['filtroEstado']) ? trim($_GET['filtroEstado']) : 'entregados';
-    $filtroTipo = isset($_GET['filtroTipo']) ? trim($_GET['filtroTipo']) : '';
-    $filtroTexto = isset($_GET['filtroTexto']) ? trim($_GET['filtroTexto']) : '';
-    $filtrarFecha = isset($_GET['filtrar_fecha']) && $_GET['filtrar_fecha'] === 'true';
-    $filtroInicio = isset($_GET['filtroInicio']) ? trim($_GET['filtroInicio']) : '';
-    $filtroFin = isset($_GET['filtroFin']) ? trim($_GET['filtroFin']) : '';
+    // Determinar tipo de reporte
+    $tipoReporte = isset($_GET['tipo_reporte']) ? trim($_GET['tipo_reporte']) : 'general';
+    
+    // Parámetros de filtro según el tipo de reporte
+    $whereConditions = [];
     
     // Solo aplicar filtro de rol en backend (secretario solo sus depósitos)
-    $whereConditions = [];
     if ($idRol === 3) {
         $whereConditions[] = "dj.documento_secretario='" . mysqli_real_escape_string($cn, $usuarioActual) . "'";
     }
     
-    // Aplicar filtro por ESTADO en el backend
-    if ($filtroEstado === 'pendientes') {
-        $whereConditions[] = "dj.id_estado IN (3,5,6,8,9)";
-    } elseif ($filtroEstado === 'porentregar') {
-        $whereConditions[] = "dj.id_estado IN (2,7)";
-    } elseif ($filtroEstado === 'entregados') {
-        $whereConditions[] = "dj.id_estado = 1";
-    } elseif ($filtroEstado === 'anulados') {
-        $whereConditions[] = "dj.id_estado = 10";
+    if ($tipoReporte === 'juzgado') {
+        // Filtro por juzgado específico
+        $filtroJuzgadoId = isset($_GET['filtro_juzgado_id']) ? intval($_GET['filtro_juzgado_id']) : 0;
+        if ($filtroJuzgadoId > 0) {
+            $whereConditions[] = "j.id_juzgado = $filtroJuzgadoId";
+        }
+        
+        // Aplicar filtro de estado (viene del frontend como 'todos' por defecto)
+        $filtroEstado = isset($_GET['filtroEstado']) ? trim($_GET['filtroEstado']) : 'todos';
+        if ($filtroEstado === 'pendientes') {
+            $whereConditions[] = "dj.id_estado IN (3,5,6,8,9)";
+        } elseif ($filtroEstado === 'porentregar') {
+            $whereConditions[] = "dj.id_estado IN (2,7)";
+        } elseif ($filtroEstado === 'entregados') {
+            $whereConditions[] = "dj.id_estado = 1";
+        } elseif ($filtroEstado === 'anulados') {
+            $whereConditions[] = "dj.id_estado = 10";
+        }
+        // Si es 'todos', no agregar condición de estado
+        
+    } elseif ($tipoReporte === 'secretario') {
+        // Filtro por secretario específico
+        $filtroSecretarioDoc = isset($_GET['filtro_secretario_doc']) ? trim($_GET['filtro_secretario_doc']) : '';
+        if ($filtroSecretarioDoc) {
+            $whereConditions[] = "dj.documento_secretario='" . mysqli_real_escape_string($cn, $filtroSecretarioDoc) . "'";
+        }
+        
+        // Aplicar filtro de estado (viene del frontend como 'todos' por defecto)
+        $filtroEstado = isset($_GET['filtroEstado']) ? trim($_GET['filtroEstado']) : 'todos';
+        if ($filtroEstado === 'pendientes') {
+            $whereConditions[] = "dj.id_estado IN (3,5,6,8,9)";
+        } elseif ($filtroEstado === 'porentregar') {
+            $whereConditions[] = "dj.id_estado IN (2,7)";
+        } elseif ($filtroEstado === 'entregados') {
+            $whereConditions[] = "dj.id_estado = 1";
+        } elseif ($filtroEstado === 'anulados') {
+            $whereConditions[] = "dj.id_estado = 10";
+        }
+        // Si es 'todos', no agregar condición de estado
+        
+    } else {
+        // Filtros para reporte general
+        $filtroEstado = isset($_GET['filtroEstado']) ? trim($_GET['filtroEstado']) : 'entregados';
+        $filtroTipo = isset($_GET['filtroTipo']) ? trim($_GET['filtroTipo']) : '';
+        $filtroTexto = isset($_GET['filtroTexto']) ? trim($_GET['filtroTexto']) : '';
+        
+        // Aplicar filtro por ESTADO en el backend
+        if ($filtroEstado === 'pendientes') {
+            $whereConditions[] = "dj.id_estado IN (3,5,6,8,9)";
+        } elseif ($filtroEstado === 'porentregar') {
+            $whereConditions[] = "dj.id_estado IN (2,7)";
+        } elseif ($filtroEstado === 'entregados') {
+            $whereConditions[] = "dj.id_estado = 1";
+        } elseif ($filtroEstado === 'anulados') {
+            $whereConditions[] = "dj.id_estado = 10";
+        }
+        // Si es 'todos', no agregar condición
+        
+        // Filtro por tipo/texto (juzgado o secretario)
+        if ($filtroTipo && $filtroTexto) {
+            $filtroTextoEscaped = mysqli_real_escape_string($cn, $filtroTexto);
+            if ($filtroTipo === 'juzgado') {
+                $whereConditions[] = "j.nombre_juzgado LIKE '%$filtroTextoEscaped%'";
+            } elseif ($filtroTipo === 'secretario') {
+                $whereConditions[] = "(CONCAT(sec.nombre_persona,' ',sec.apellido_persona) LIKE '%$filtroTextoEscaped%')";
+            }
+        }
     }
-    // Si es 'todos', no agregar condición
     
     // Construir la parte FROM de la consulta SQL (común para COUNT y SELECT)
     $sqlFrom = "
@@ -185,6 +239,21 @@ try {
         ];
     }
     
+    // Preparar información de filtros según el tipo de reporte
+    $filtersInfo = ['tipo_reporte' => $tipoReporte];
+    
+    if ($tipoReporte === 'juzgado') {
+        $filtersInfo['filtro_juzgado_id'] = $filtroJuzgadoId ?? null;
+    } elseif ($tipoReporte === 'secretario') {
+        $filtersInfo['filtro_secretario_doc'] = $filtroSecretarioDoc ?? null;
+    } else {
+        $filtersInfo = array_merge($filtersInfo, [
+            'filtroEstado' => $filtroEstado ?? 'entregados',
+            'filtroTipo' => $filtroTipo ?? '',
+            'filtroTexto' => $filtroTexto ?? ''
+        ]);
+    }
+    
     // Respuesta exitosa
     echo json_encode([
         'success' => true,
@@ -197,14 +266,7 @@ try {
             'has_prev' => $page > 1,
             'has_next' => $page < $total_pages
         ],
-        'filters' => [
-            'filtroEstado' => $filtroEstado,
-            'filtroTipo' => $filtroTipo,
-            'filtroTexto' => $filtroTexto,
-            'filtrar_fecha' => $filtrarFecha,
-            'filtroInicio' => $filtroInicio,
-            'filtroFin' => $filtroFin
-        ],
+        'filters' => $filtersInfo,
         'userRole' => $idRol
     ]);
     

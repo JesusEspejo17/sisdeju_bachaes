@@ -139,6 +139,8 @@ function canView(string $vista, int $idRol, array $viewRoles): bool {
     <ul class="submenuItems">
       <?php if (canView('reporte_deposito', $idRol, $viewRoles)): ?>
         <li><a href="?vista=reporte_deposito">Reporte de depósitos</a></li>
+        <li><a href="?vista=reporte_deposito&tipo=juzgado">Reporte por juzgado</a></li>
+        <li><a href="?vista=reporte_deposito&tipo=secretario">Reporte por secretario</a></li>
       <?php endif; ?>
     </ul>
   </li>

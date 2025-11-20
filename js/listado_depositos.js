@@ -437,9 +437,11 @@ function extractDepositFromFirmaFilename(filename) {
 
           <div id="ordenesContainer" style="margin-bottom:8px; text-align:left;">
             <label style="font-weight:600;">Orden de Pago (PDF) — debe comenzar con <strong>FIRMA_</strong></label><br>
-            <div class="orden-file-row" style="margin-top:6px;">
-              <input type="file" name="orden_pdf[]" class="orden-file" accept="application/pdf"/>
-              <button type="button" class="remove-orden-btn chat-action-btn btn-gris" style="margin-left:8px; display:none;">Eliminar</button>
+            <div style="max-height:80px; overflow:auto; border:1px solid #ddd; padding:8px; border-radius:4px;">
+              <div class="orden-file-row">
+                <input type="file" name="orden_pdf[]" class="orden-file" accept="application/pdf"/>
+                <button type="button" class="remove-orden-btn chat-action-btn btn-gris" style="margin-left:8px; display:none;">Eliminar</button>
+              </div>
             </div>
           </div>
 
@@ -449,9 +451,11 @@ function extractDepositFromFirmaFilename(filename) {
 
           <div id="resolucionesContainer" style="margin-bottom:8px; text-align:left;">
             <label style="font-weight:600;">Resolución (PDF) — OBLIGATORIA</label><br>
-            <div class="resol-file-row" style="margin-top:6px;">
-              <input type="file" name="resolucion_pdf[]" class="resol-file" accept="application/pdf"/>
-              <button type="button" class="remove-resol-btn chat-action-btn btn-gris" style="margin-left:8px; display:none;">Eliminar</button>
+            <div style="max-height:80px; overflow:auto; border:1px solid #ddd; padding:8px; border-radius:4px;">
+              <div class="resol-file-row">
+                <input type="file" name="resolucion_pdf[]" class="resol-file" accept="application/pdf"/>
+                <button type="button" class="remove-resol-btn chat-action-btn btn-gris" style="margin-left:8px; display:none;">Eliminar</button>
+              </div>
             </div>
             <div style="font-size:0.85em;color:gray;margin-top:4px;">
               Nota: el número de depósito se extrae sólo desde el/los archivos de <strong>Orden de Pago</strong> (formato <code>FIRMA_&lt;NRO&gt;_...</code>).
@@ -462,11 +466,11 @@ function extractDepositFromFirmaFilename(filename) {
             <button type="button" id="addResolBtn" class="chat-action-btn" style="margin-bottom:8px;">+ Agregar otra resolución</button>
           </div>
 
-          <div style="margin-top:12px;">
+          <div>
             <button type="submit" id="submitPdfBtn" class="chat-action-btn">Enviar archivos</button>
             <button type="button" id="cancelUploadBtn" class="chat-action-btn btn-rojo" style="margin-left:8px;">Cancelar</button>
           </div>
-          <div id="uploadStatus" style="margin-top:10px;"></div>
+          <div id="uploadStatus" style="margin-top:5px;"></div>
         </form>
       `);
 
@@ -500,7 +504,13 @@ function extractDepositFromFirmaFilename(filename) {
           <input type="file" name="orden_pdf[]" class="orden-file" accept="application/pdf" />
           <button type="button" class="remove-orden-btn chat-action-btn btn-gris" style="margin-left:8px;">Eliminar</button>
         `;
-        ordenesContainer.appendChild(row);
+        // Agregar al contenedor con scroll (primer div hijo de ordenesContainer)
+        const scrollContainer = ordenesContainer.querySelector('div[style*="max-height"]');
+        if (scrollContainer) {
+          scrollContainer.appendChild(row);
+        } else {
+          ordenesContainer.appendChild(row);
+        }
         const rem = row.querySelector('.remove-orden-btn');
         rem.addEventListener('click', (ev) => { ev.preventDefault(); row.remove(); });
       });
@@ -515,7 +525,13 @@ function extractDepositFromFirmaFilename(filename) {
           <input type="file" name="resolucion_pdf[]" class="resol-file" accept="application/pdf" />
           <button type="button" class="remove-resol-btn chat-action-btn btn-gris" style="margin-left:8px;">Eliminar</button>
         `;
-        resolucionesContainer.appendChild(row);
+        // Agregar al contenedor con scroll (primer div hijo de resolucionesContainer)
+        const scrollContainer = resolucionesContainer.querySelector('div[style*="max-height"]');
+        if (scrollContainer) {
+          scrollContainer.appendChild(row);
+        } else {
+          resolucionesContainer.appendChild(row);
+        }
         const rem = row.querySelector('.remove-resol-btn');
         rem.addEventListener('click', (ev) => { ev.preventDefault(); row.remove(); });
       });
@@ -690,8 +706,6 @@ function extractDepositFromFirmaFilename(filename) {
 
         submitBtn.disabled = true;
         submitBtn.textContent = "Subiendo...";
-        statusDiv.innerHTML = "<small>Cargando archivos…</small>";
-
         try {
           const resp = await fetch("../code_back/back_deposito_subir_pdf.php", { method: "POST", body: fd });
           const text = await resp.text();

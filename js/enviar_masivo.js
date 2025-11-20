@@ -255,7 +255,41 @@ document.addEventListener("DOMContentLoaded", () => {
         Swal.fire("❌", (j && j.error) || "Error al guardar mensajes en el servidor.", "error");
         return;
       }
-      Swal.fire("✅", j.msg || "Mensajes guardados en cola para envío.", "success");
+      
+      // Mostrar mensaje personalizado según la acción realizada
+      let iconType = "success";
+      let title = "Bot Iniciado";
+      
+      if (j.action === 'queue_only') {
+        iconType = "info";
+        title = "Mensajes Agregados a Cola Existente";
+      } else if (j.action === 'new_bot') {
+        iconType = "success";
+        title = "Nueva Ventana CMD Abierta";
+      }
+      
+      Swal.fire({
+        icon: iconType,
+        title: title,
+        html: `
+          <div style="text-align: left;">
+            <p><strong>${j.msg}</strong></p>
+            <hr>
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 10px 0;">
+              📥 Mensajes agregados: <strong>${j.agregados}</strong><br>
+              📋 Total en cola: <strong>${j.total_pendientes}</strong><br>
+              ${j.limpiados > 0 ? `🧹 Mensajes limpiados: <strong>${j.limpiados}</strong><br>` : ''}
+              ${j.action === 'queue_only' ? 
+                '🔄 <strong style="color: #17a2b8;">Solo se agregó a cola existente</strong><br>' : 
+                '🆕 <strong style="color: #28a745;">Nueva ventana CMD abierta</strong><br>'}
+              🤖 Estado: <strong>${j.bot_status === 'running' ? 'Ejecutándose' : 'Iniciado'}</strong>
+            </div>
+          </div>
+        `,
+        confirmButtonText: "Entendido",
+        width: 500
+      });
+      
       console.info("guardar_mensajes_ws.php OK:", j);
     } catch (err) {
       console.error("Error al guardar mensajes:", err);

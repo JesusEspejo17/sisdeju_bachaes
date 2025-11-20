@@ -2,7 +2,6 @@
 // reporte_deposito.php
 // Versión con paginación: carga datos dinámicamente vía AJAX
 // Mantiene todas las funcionalidades de filtros y exportación a PDF
-// Soporte para reportes especializados: juzgado y secretario
 
 if (session_status() === PHP_SESSION_NONE) session_start();
 
@@ -12,45 +11,6 @@ if (!isset($_SESSION['documento']) || !isset($_SESSION['rol'])) {
 }
 
 $idRol = intval($_SESSION['rol']); // asegurar tipo entero
-
-// Determinar tipo de reporte
-$tipoReporte = $_GET['tipo'] ?? 'general';
-$esReporteJuzgado = ($tipoReporte === 'juzgado');
-$esReporteSecretario = ($tipoReporte === 'secretario');
-
-// Obtener datos para los filtros especializados
-include("../code_back/conexion.php");
-
-if ($esReporteJuzgado) {
-    // Cargar tipos de juzgado y juzgados
-    $sql_tipos_juzgado = "SELECT DISTINCT tipo_juzgado FROM juzgado ORDER BY tipo_juzgado";
-    $result_tipos = mysqli_query($cn, $sql_tipos_juzgado);
-    $tipos_juzgado = [];
-    while ($row = mysqli_fetch_assoc($result_tipos)) {
-        $tipos_juzgado[] = $row['tipo_juzgado'];
-    }
-    
-    $sql_juzgados = "SELECT id_juzgado, nombre_juzgado, tipo_juzgado FROM juzgado ORDER BY tipo_juzgado, nombre_juzgado";
-    $result_juzgados = mysqli_query($cn, $sql_juzgados);
-    $juzgados = [];
-    while ($row = mysqli_fetch_assoc($result_juzgados)) {
-        $juzgados[] = $row;
-    }
-} elseif ($esReporteSecretario) {
-    // Cargar secretarios (rol 3) que realmente tienen depósitos asignados
-    $sql_secretarios = "SELECT DISTINCT dj.documento_secretario as documento, 
-                               CONCAT(p.nombre_persona, ' ', p.apellido_persona) AS nombre_completo
-                        FROM deposito_judicial dj
-                        JOIN persona p ON dj.documento_secretario = p.documento 
-                        JOIN usuario u ON p.documento = u.codigo_usu 
-                        WHERE u.id_rol = 3 AND dj.documento_secretario IS NOT NULL
-                        ORDER BY p.nombre_persona, p.apellido_persona";
-    $result_secretarios = mysqli_query($cn, $sql_secretarios);
-    $secretarios = [];
-    while ($row = mysqli_fetch_assoc($result_secretarios)) {
-        $secretarios[] = $row;
-    }
-}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -64,6 +24,7 @@ if ($esReporteJuzgado) {
   <script src="../js/sweetalert2.all.min.js"></script>
   <style>
     .filtro-group { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .rango-fechas { display: flex; }
     
     /* Clases para mostrar/ocultar elementos sin alterar su layout */
     .oculto { display: none !important; }
@@ -136,46 +97,42 @@ if ($esReporteJuzgado) {
 </head>
 <body>
   <div class="main-container">
-    <h1>
-      <?php if ($esReporteJuzgado): ?>
-        Reporte de los certificados de Depósitos Judiciales (Por juzgado)
-      <?php elseif ($esReporteSecretario): ?>
-        Reporte de los certificados de Depósitos Judiciales (Por secretario)
-      <?php else: ?>
-        Reporte de los certificados de Depósitos Judiciales
-      <?php endif; ?>
-    </h1>
-    
-    <!-- Filtros para reporte general -->
-    <?php if (!$esReporteJuzgado && !$esReporteSecretario): ?>
+    <h1>Reporte de los certificados de Depósitos Judiciales</h1>
     <div class="filtro-group">
       <label for="filtroEstado"><strong>Estado:</strong></label>
       <select id="filtroEstado">
         <option value="entregados">Entregados</option>
+        <option value="anulados">Anulados</option>
+        <option value="todos">Todos</option>
+        <option value="pendientes">Pendientes de atención</option>
         <option value="porentregar">Por entregar</option>
       </select>
 
-      <?php if (!in_array($idRol, [1,2])): ?>
-        <label for="filtroTipo"><strong>Ver:</strong></label>
-        <select id="filtroVerReporte">
-          <option value="Reporte">Reporte de depósitos judiciales</option>
-          <option value="Usuario">Distribución de entregas por usuario</option>
-          <option value="Secretario">Distribución de entregas por secretario</option>
-        </select>
-        <input type="button" value="Exportar PDF" onclick="exportarPDF()" style="height: 38px; margin-top: 0; padding: 10px 25px;">
-      <?php endif; ?>
+    <?php if (!in_array($idRol, [1,2])): ?>
+      <label for="filtroTipo"><strong>Ver:</strong></label>
+      <select id="filtroVerReporte">
+        <option value="Reporte">Reporte de depósitos judiciales</option>
+        <option value="Usuario">Distribución de entregas por usuario</option>
+        <option value="Secretario">Distribución de entregas por secretario</option>
+      </select>
+      <input type="button" value="Exportar PDF" onclick="exportarPDF()" style="height: 38px; margin-top: 0; padding: 10px 25px;">
+    <?php endif; ?>
 
-      <?php if (in_array($idRol, [1, 2])): ?>
-        <label for="filtroTipo"><strong>Filtrar por:</strong></label>
-        <select id="filtroTipo">
-          <option value="juzgado">Juzgado</option>
-          <option value="secretario">Secretario</option>
-        </select>
-        <input type="text" id="filtroTexto" placeholder="Escribe para filtrar..." autocomplete="off">
-      <?php endif; ?>
+    <?php if (in_array($idRol, [1, 2])): ?>
+      <label for="filtroTipo"><strong>Filtrar por:</strong></label>
+      <select id="filtroTipo">
+        <option value="juzgado">Juzgado</option>
+        <option value="secretario">Secretario</option>
+      </select>
+      <input type="text" id="filtroTexto" placeholder="Escribe para filtrar..." autocomplete="off">
+    <?php endif; ?>
     </div>
 
     <div class="filtro-group">
+      <div class="rango-fechas" style="gap:10px; align-items:center; display:flex;">
+        <label>Desde: <input type="date" id="filtroInicio"></label>
+        <label>Hasta: <input type="date" id="filtroFin"></label>
+      </div>
       <?php if (in_array($idRol, [1, 2])): ?>
       <label for="filtroTipo"><strong>Ver:</strong></label>
       <select id="filtroVerReporte">
@@ -186,71 +143,6 @@ if ($esReporteJuzgado) {
       <input type="button" value="Exportar PDF" onclick="exportarPDF()" style="height: 38px; margin-top: 0; padding: 10px 25px;">
       <?php endif; ?>
     </div>
-    <?php endif; ?>
-
-    <!-- Filtros para reporte por juzgado -->
-    <?php if ($esReporteJuzgado): ?>
-    <div class="filtro-group">
-      <label for="filtroEstadoJuzgado"><strong>Estado:</strong></label>
-      <select id="filtroEstadoJuzgado">
-        <option value="entregados">Entregados</option>
-        <option value="porentregar">Por entregar</option>
-      </select>
-
-      <label for="filtroVerReporte"><strong>Ver:</strong></label>
-      <select id="filtroVerReporte">
-        <option value="Reporte">Reporte de depósitos judiciales</option>
-        <option value="Usuario">Distribución de entregas por usuario</option>
-        <option value="Secretario">Distribución de entregas por secretario</option>
-      </select>
-      
-      <input type="button" value="Exportar PDF" onclick="exportarPDF()" style="height: 38px; margin-top: 0; padding: 10px 25px;">
-    </div>
-
-    <div class="filtro-group">
-      <label for="filtroTipoJuzgado"><strong>Tipo de Juzgado:</strong></label>
-      <select id="filtroTipoJuzgado" style="max-width: 20%;">
-        <option value="" disabled selected>Seleccione tipo de juzgado</option>
-        <?php foreach ($tipos_juzgado as $tipo): ?>
-          <option value="<?= htmlspecialchars($tipo) ?>"><?= htmlspecialchars($tipo) ?></option>
-        <?php endforeach; ?>
-      </select>
-      <label for="filtroJuzgadoEspecifico"><strong>Juzgado:</strong></label>
-      <select id="filtroJuzgadoEspecifico" style="max-width: 80%;" disabled>
-        <option value="">Seleccione un tipo primero</option>
-      </select>
-    </div>
-    <?php endif; ?>
-
-    <!-- Filtros para reporte por secretario -->
-    <?php if ($esReporteSecretario): ?>
-    <div class="filtro-group">
-      <label for="filtroEstadoSecretario"><strong>Estado:</strong></label>
-      <select id="filtroEstadoSecretario">
-        <option value="entregados">Entregados</option>
-        <option value="porentregar">Por entregar</option>
-      </select>
-      
-      <label for="filtroSecretarioEspecifico"><strong>Secretario:</strong></label>
-      <select id="filtroSecretarioEspecifico">
-        <option value="" disabled selected>Seleccione un secretario</option>
-        <?php foreach ($secretarios as $secretario): ?>
-          <option value="<?= htmlspecialchars($secretario['documento']) ?>"><?= htmlspecialchars($secretario['nombre_completo']) ?></option>
-        <?php endforeach; ?>
-      </select>
-    </div>
-
-    <div class="filtro-group">
-      <label for="filtroVerReporte"><strong>Ver:</strong></label>
-      <select id="filtroVerReporte">
-        <option value="Reporte">Reporte de depósitos judiciales</option>
-        <option value="Usuario">Distribución de entregas por usuario</option>
-        <option value="Secretario">Distribución de entregas por secretario</option>
-      </select>
-      
-      <input type="button" value="Exportar PDF" onclick="exportarPDF()" style="height: 38px; margin-top: 0; padding: 10px 25px;">
-    </div>
-    <?php endif; ?>
 
     <!-- Loading spinner -->
     <div id="loading" class="loading">
@@ -317,31 +209,11 @@ let isLoading = false;
 let allDataForExport = []; // Para almacenar todos los datos visibles para exportación
 
 const userRole = <?= json_encode($idRol) ?>;
-const tipoReporte = <?= json_encode($tipoReporte) ?>;
-const esReporteJuzgado = <?= json_encode($esReporteJuzgado) ?>;
-const esReporteSecretario = <?= json_encode($esReporteSecretario) ?>;
-
-// Datos para filtros especializados
-<?php if ($esReporteJuzgado): ?>
-const juzgadosData = <?= json_encode($juzgados) ?>;
-<?php endif; ?>
-
-<?php if ($esReporteSecretario): ?>
-const secretariosData = <?= json_encode($secretarios) ?>;
-<?php endif; ?>
-
-// Referencias a elementos DOM
 const filtroEstadoEl = document.getElementById('filtroEstado');
 const filtroTipoEl = document.getElementById('filtroTipo');
 const filtroTextoEl = document.getElementById('filtroTexto');
-
-// Nuevos elementos para reportes especializados
-const filtroTipoJuzgadoEl = document.getElementById('filtroTipoJuzgado');
-const filtroJuzgadoEspecificoEl = document.getElementById('filtroJuzgadoEspecifico');
-const filtroSecretarioEspecificoEl = document.getElementById('filtroSecretarioEspecifico');
-const filtroEstadoJuzgadoEl = document.getElementById('filtroEstadoJuzgado');
-const filtroEstadoSecretarioEl = document.getElementById('filtroEstadoSecretario');
-
+const filtroInicioEl = document.getElementById('filtroInicio');
+const filtroFinEl = document.getElementById('filtroFin');
 const registrosPorPaginaEl = document.getElementById('registrosPorPagina');
 const tbody = document.getElementById('tabla-body');
 const loadingEl = document.getElementById('loading');
@@ -436,11 +308,9 @@ function renderTable(data) {
     tbody.appendChild(tr);
   });
   
-  // Para reportes especializados, aplicar filtros secundarios en frontend
-  // Para reporte general, todos los filtros se manejan en backend
-  if (esReporteJuzgado || esReporteSecretario) {
-    aplicarFiltrosSecundariosFrontend();
-  }
+  // Solo aplicar filtros de frontend secundarios (juzgado/secretario/fechas)
+  // NO filtrar por estado porque ya viene filtrado del backend
+  aplicarFiltrosSecundariosFrontend();
 }
 
 function renderPagination(pagination) {
@@ -523,30 +393,6 @@ function goToPage(page) {
   loadDepositos();
 }
 
-/* ================== Funciones para filtros especializados ================== */
-function cargarJuzgadosPorTipo() {
-  if (!filtroTipoJuzgadoEl || !filtroJuzgadoEspecificoEl) return;
-  
-  const tipoSeleccionado = filtroTipoJuzgadoEl.value;
-  filtroJuzgadoEspecificoEl.innerHTML = '<option value="" disabled selected>Seleccione un juzgado</option>';
-  
-  if (!tipoSeleccionado) {
-    filtroJuzgadoEspecificoEl.disabled = true;
-    return;
-  }
-  
-  const juzgadosFiltrados = juzgadosData.filter(j => j.tipo_juzgado === tipoSeleccionado);
-  
-  juzgadosFiltrados.forEach(juzgado => {
-    const option = document.createElement('option');
-    option.value = juzgado.id_juzgado;
-    option.textContent = juzgado.nombre_juzgado;
-    filtroJuzgadoEspecificoEl.appendChild(option);
-  });
-  
-  filtroJuzgadoEspecificoEl.disabled = false;
-}
-
 /* ================== Carga de datos ================== */
 async function loadDepositos() {
   if (isLoading) return;
@@ -557,28 +403,12 @@ async function loadDepositos() {
   const params = new URLSearchParams({
     page: currentPage,
     limit: registrosPorPaginaEl.value,
-    tipo_reporte: tipoReporte
+    filtroEstado: filtroEstadoEl.value,
+    filtroTipo: filtroTipoEl?.value || '',
+    filtroTexto: filtroTextoEl?.value || '',
+    filtroInicio: filtroInicioEl.value,
+    filtroFin: filtroFinEl.value
   });
-
-  // Agregar filtros según el tipo de reporte
-  if (esReporteJuzgado) {
-    // Para reportes por juzgado, usar filtro de estado específico
-    params.append('filtroEstado', filtroEstadoJuzgadoEl?.value || 'entregados');
-    if (filtroJuzgadoEspecificoEl?.value) {
-      params.append('filtro_juzgado_id', filtroJuzgadoEspecificoEl.value);
-    }
-  } else if (esReporteSecretario) {
-    // Para reportes por secretario, usar filtro de estado específico
-    params.append('filtroEstado', filtroEstadoSecretarioEl?.value || 'entregados');
-    if (filtroSecretarioEspecificoEl?.value) {
-      params.append('filtro_secretario_doc', filtroSecretarioEspecificoEl.value);
-    }
-  } else {
-    // Filtros del reporte general - todos al backend
-    params.append('filtroEstado', filtroEstadoEl?.value || 'entregados');
-    params.append('filtroTipo', filtroTipoEl?.value || '');
-    params.append('filtroTexto', filtroTextoEl?.value || '');
-  }
 
   try {
     const response = await fetch(`../api/get_reportes_depositos_paginados.php?${params}`, {
@@ -602,9 +432,6 @@ async function loadDepositos() {
     totalPages = data.pagination.total_pages;
     totalRecords = data.pagination.total_records;
 
-    // No aplicar filtros secundarios en frontend para reporte general
-    // ya que todos los filtros se manejan en backend
-    
     // Actualizar gráficos si es necesario
     const filtroVerReporteEl = document.getElementById('filtroVerReporte');
     if (filtroVerReporteEl && filtroVerReporteEl.value !== 'Reporte') {
@@ -642,19 +469,16 @@ function updateVisibleRecordsCount() {
   }
 }
 
-// Filtros secundarios - Solo para reportes especializados (no para el general)
+// Filtros secundarios (juzgado, secretario, fechas) - NO filtrar por estado aquí
 function aplicarFiltrosSecundariosFrontend() {
-  // El reporte general ahora maneja todos los filtros en backend
-  // Solo los reportes especializados usan filtros secundarios en frontend
-  if (!esReporteJuzgado && !esReporteSecretario) {
-    return;
-  }
-  
   const tipo = filtroTipoEl?.value;
   const texto = filtroTextoEl?.value.toLowerCase() || '';
+  const inicio = filtroInicioEl.value;
+  const fin = filtroFinEl.value;
+  const usarFechas = inicio && fin; // Filtrar por fechas solo si ambas están completas
 
   let hasFilters = false;
-  if (texto) {
+  if (texto || (usarFechas && inicio && fin)) {
     hasFilters = true;
   }
 
@@ -682,6 +506,19 @@ function aplicarFiltrosSecundariosFrontend() {
       const campo = tipo === 'juzgado' ? 'juzgado' : 'secretario';
       const valor = tr.dataset[campo] || '';
       if (!valor.includes(texto)) visible = false;
+    }
+
+    // Filtro por fechas
+    if (visible && usarFechas && inicio && fin) {
+      const fechaFinalIso = tr.dataset.fechaFinalizacion || '';
+      if (!fechaFinalIso) {
+        visible = false;
+      } else {
+        const dateEnvio = new Date(fechaFinalIso.replace(' ', 'T'));
+        const di = new Date(inicio + 'T00:00:00');
+        const df = new Date(fin + 'T23:59:59');
+        if (isNaN(dateEnvio.getTime()) || dateEnvio < di || dateEnvio > df) visible = false;
+      }
     }
 
     tr.style.display = visible ? '' : 'none';
@@ -713,42 +550,14 @@ function debounce(fn, ms = 300) {
 // Event listeners
 const debouncedAplicarSecundarios = debounce(aplicarFiltrosSecundariosFrontend, 300);
 
-// Event listeners para reporte general
-if (filtroEstadoEl) {
-  filtroEstadoEl.addEventListener('change', aplicarFiltros);
-}
+// Cambio de estado: recargar desde servidor
+filtroEstadoEl.addEventListener('change', aplicarFiltros);
 
-// Para reporte general: todos los filtros al backend
-const debouncedAplicarFiltros = debounce(aplicarFiltros, 300);
-if (filtroTipoEl) filtroTipoEl.addEventListener('change', aplicarFiltros);
-if (filtroTextoEl) filtroTextoEl.addEventListener('input', debouncedAplicarFiltros);
-
-// Event listeners para reporte por juzgado
-if (filtroEstadoJuzgadoEl) {
-  filtroEstadoJuzgadoEl.addEventListener('change', aplicarFiltros);
-}
-
-if (filtroTipoJuzgadoEl) {
-  filtroTipoJuzgadoEl.addEventListener('change', () => {
-    cargarJuzgadosPorTipo();
-    if (filtroJuzgadoEspecificoEl.value) {
-      aplicarFiltros();
-    }
-  });
-}
-
-if (filtroJuzgadoEspecificoEl) {
-  filtroJuzgadoEspecificoEl.addEventListener('change', aplicarFiltros);
-}
-
-// Event listeners para reporte por secretario
-if (filtroEstadoSecretarioEl) {
-  filtroEstadoSecretarioEl.addEventListener('change', aplicarFiltros);
-}
-
-if (filtroSecretarioEspecificoEl) {
-  filtroSecretarioEspecificoEl.addEventListener('change', aplicarFiltros);
-}
+// Cambios en filtros secundarios (juzgado/secretario/fechas): filtrar en frontend
+if (filtroTipoEl) filtroTipoEl.addEventListener('change', aplicarFiltrosSecundariosFrontend);
+if (filtroTextoEl) filtroTextoEl.addEventListener('input', debouncedAplicarSecundarios);
+filtroInicioEl.addEventListener('change', aplicarFiltrosSecundariosFrontend);
+filtroFinEl.addEventListener('change', aplicarFiltrosSecundariosFrontend);
 
 // Cambio de tipo de visualización (Reporte / Usuario / Secretario)
 const filtroVerReporteEl = document.getElementById('filtroVerReporte');
@@ -761,20 +570,8 @@ if (filtroVerReporteEl) {
 // Cambio de registros por página: recargar desde servidor
 registrosPorPaginaEl.addEventListener('change', aplicarFiltros);
 
-// Inicialización según el tipo de reporte
-document.addEventListener('DOMContentLoaded', () => {
-  if (esReporteJuzgado) {
-    // Configurar el estado por defecto para mostrar todos los estados
-    // No cargar datos hasta que se seleccione un juzgado
-    console.log('Reporte por juzgado cargado. Seleccione un juzgado para ver datos.');
-  } else if (esReporteSecretario) {
-    // No cargar datos hasta que se seleccione un secretario
-    console.log('Reporte por secretario cargado. Seleccione un secretario para ver datos.');
-  } else {
-    // Cargar datos normalmente para reporte general
-    loadDepositos();
-  }
-});
+// Cargar datos iniciales
+document.addEventListener('DOMContentLoaded', loadDepositos);
 
 function exportarPDF() {
   const { jsPDF } = window.jspdf;
@@ -797,28 +594,12 @@ async function obtenerDatosParaExportacion() {
   const params = new URLSearchParams({
     page: 1,
     limit: -1, // Obtener todos los registros
-    tipo_reporte: tipoReporte
+    filtroEstado: filtroEstadoEl.value,
+    filtroTipo: filtroTipoEl?.value || '',
+    filtroTexto: filtroTextoEl?.value || '',
+    filtroInicio: filtroInicioEl.value,
+    filtroFin: filtroFinEl.value
   });
-
-  // Agregar filtros según el tipo de reporte
-  if (esReporteJuzgado) {
-    // Para reportes por juzgado, usar filtro de estado específico
-    params.append('filtroEstado', filtroEstadoJuzgadoEl?.value || 'entregados');
-    if (filtroJuzgadoEspecificoEl?.value) {
-      params.append('filtro_juzgado_id', filtroJuzgadoEspecificoEl.value);
-    }
-  } else if (esReporteSecretario) {
-    // Para reportes por secretario, usar filtro de estado específico
-    params.append('filtroEstado', filtroEstadoSecretarioEl?.value || 'entregados');
-    if (filtroSecretarioEspecificoEl?.value) {
-      params.append('filtro_secretario_doc', filtroSecretarioEspecificoEl.value);
-    }
-  } else {
-    // Filtros del reporte general - todos al backend
-    params.append('filtroEstado', filtroEstadoEl?.value || 'entregados');
-    params.append('filtroTipo', filtroTipoEl?.value || '');
-    params.append('filtroTexto', filtroTextoEl?.value || '');
-  }
 
   const response = await fetch(`../api/get_reportes_depositos_paginados.php?${params}`, {
     credentials: 'same-origin'
@@ -834,8 +615,44 @@ async function obtenerDatosParaExportacion() {
     throw new Error(data.message || 'Error desconocido');
   }
 
-  // Todos los filtros ya se aplican en backend, sin filtros adicionales en frontend
-  return data.data;
+  // Aplicar filtros secundarios si existen (similar a como se hace en el frontend)
+  let filteredData = data.data;
+  
+  const tipo = filtroTipoEl?.value;
+  const texto = filtroTextoEl?.value.toLowerCase() || '';
+  const inicio = filtroInicioEl.value;
+  const fin = filtroFinEl.value;
+  const usarFechas = inicio && fin;
+
+  // Aplicar filtros secundarios si existen
+  if (texto || usarFechas) {
+    filteredData = data.data.filter(deposito => {
+      let coincide = true;
+      
+      // Filtrar por texto (juzgado o secretario)
+      if (texto) {
+        if (tipo === 'juzgado') {
+          coincide = coincide && (deposito.nombre_juzgado || '').toLowerCase().includes(texto);
+        } else if (tipo === 'secretario') {
+          coincide = coincide && (deposito.nombre_secretario || '').toLowerCase().includes(texto);
+        }
+      }
+      
+      // Filtrar por fechas (usar fecha_notificacion_deposito)
+      if (usarFechas && deposito.fecha_notificacion_deposito) {
+        const fechaDeposito = new Date(deposito.fecha_notificacion_deposito);
+        const fechaInicio = new Date(inicio);
+        const fechaFin = new Date(fin);
+        fechaFin.setHours(23, 59, 59, 999); // Incluir todo el día final
+        
+        coincide = coincide && (fechaDeposito >= fechaInicio && fechaDeposito <= fechaFin);
+      }
+      
+      return coincide;
+    });
+  }
+
+  return filteredData;
 }
 
 // Función auxiliar para obtener entregas por usuario desde datos de exportación
