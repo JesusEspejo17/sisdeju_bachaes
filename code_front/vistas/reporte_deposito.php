@@ -17,6 +17,7 @@ $idRol = intval($_SESSION['rol']); // asegurar tipo entero
 $tipoReporte = $_GET['tipo'] ?? 'general';
 $esReporteJuzgado = ($tipoReporte === 'juzgado');
 $esReporteSecretario = ($tipoReporte === 'secretario');
+$esReporteUsuario = ($tipoReporte === 'usuario');
 
 // Obtener datos para los filtros especializados
 include("../code_back/conexion.php");
@@ -49,6 +50,23 @@ if ($esReporteJuzgado) {
     $secretarios = [];
     while ($row = mysqli_fetch_assoc($result_secretarios)) {
         $secretarios[] = $row;
+    }
+} elseif ($esReporteUsuario) {
+    // Cargar usuarios (rol 4) que realmente han entregado depósitos
+    $sql_usuarios = "SELECT DISTINCT hd.documento_usuario as documento, 
+                            CONCAT(p.nombre_persona, ' ', p.apellido_persona) AS nombre_completo
+                     FROM historial_deposito hd
+                     JOIN persona p ON hd.documento_usuario = p.documento 
+                     JOIN usuario u ON p.documento = u.codigo_usu 
+                     WHERE u.id_rol = 4 
+                     AND hd.tipo_evento = 'CAMBIO_ESTADO' 
+                     AND hd.estado_nuevo = 1
+                     AND hd.documento_usuario IS NOT NULL
+                     ORDER BY p.nombre_persona, p.apellido_persona";
+    $result_usuarios = mysqli_query($cn, $sql_usuarios);
+    $usuarios = [];
+    while ($row = mysqli_fetch_assoc($result_usuarios)) {
+        $usuarios[] = $row;
     }
 }
 ?>
@@ -141,13 +159,15 @@ if ($esReporteJuzgado) {
         Reporte de los certificados de Depósitos Judiciales (Por juzgado)
       <?php elseif ($esReporteSecretario): ?>
         Reporte de los certificados de Depósitos Judiciales (Por secretario)
+      <?php elseif ($esReporteUsuario): ?>
+        Reporte de los certificados de Depósitos Judiciales (Por usuario)
       <?php else: ?>
         Reporte de los certificados de Depósitos Judiciales
       <?php endif; ?>
     </h1>
     
     <!-- Filtros para reporte general -->
-    <?php if (!$esReporteJuzgado && !$esReporteSecretario): ?>
+    <?php if (!$esReporteJuzgado && !$esReporteSecretario && !$esReporteUsuario): ?>
     <div class="filtro-group">
       <label for="filtroEstado"><strong>Estado:</strong></label>
       <select id="filtroEstado">
@@ -245,6 +265,25 @@ if ($esReporteJuzgado) {
       <select id="filtroVerReporte">
         <option value="Reporte">Reporte de depósitos judiciales</option>
         <option value="Usuario">Distribución de entregas por usuario</option>
+      </select>
+      
+      <input type="button" value="Exportar PDF" onclick="exportarPDF()" style="height: 38px; margin-top: 0; padding: 10px 25px;">
+    </div>
+    <?php endif; ?>
+
+    <!-- Filtros para reporte por usuario -->
+    <?php if ($esReporteUsuario): ?>
+    <div class="filtro-group">
+      <label for="filtroUsuarioEspecifico"><strong>Usuario:</strong></label>
+      <select id="filtroUsuarioEspecifico">
+        <option value="" disabled selected>Seleccione un usuario</option>
+        <?php foreach ($usuarios as $usuario): ?>
+          <option value="<?= htmlspecialchars($usuario['documento']) ?>"><?= htmlspecialchars($usuario['nombre_completo']) ?></option>
+        <?php endforeach; ?>
+      </select>
+      <label for="filtroVerReporte"><strong>Ver:</strong></label>
+      <select id="filtroVerReporte">
+        <option value="Reporte">Reporte de depósitos judiciales</option>
         <option value="Secretario">Distribución de entregas por secretario</option>
       </select>
       
@@ -320,6 +359,7 @@ const userRole = <?= json_encode($idRol) ?>;
 const tipoReporte = <?= json_encode($tipoReporte) ?>;
 const esReporteJuzgado = <?= json_encode($esReporteJuzgado) ?>;
 const esReporteSecretario = <?= json_encode($esReporteSecretario) ?>;
+const esReporteUsuario = <?= json_encode($esReporteUsuario) ?>;
 
 // Datos para filtros especializados
 <?php if ($esReporteJuzgado): ?>
@@ -328,6 +368,10 @@ const juzgadosData = <?= json_encode($juzgados) ?>;
 
 <?php if ($esReporteSecretario): ?>
 const secretariosData = <?= json_encode($secretarios) ?>;
+<?php endif; ?>
+
+<?php if ($esReporteUsuario): ?>
+const usuariosData = <?= json_encode($usuarios) ?>;
 <?php endif; ?>
 
 // Referencias a elementos DOM
@@ -339,6 +383,7 @@ const filtroTextoEl = document.getElementById('filtroTexto');
 const filtroTipoJuzgadoEl = document.getElementById('filtroTipoJuzgado');
 const filtroJuzgadoEspecificoEl = document.getElementById('filtroJuzgadoEspecifico');
 const filtroSecretarioEspecificoEl = document.getElementById('filtroSecretarioEspecifico');
+const filtroUsuarioEspecificoEl = document.getElementById('filtroUsuarioEspecifico');
 const filtroEstadoJuzgadoEl = document.getElementById('filtroEstadoJuzgado');
 const filtroEstadoSecretarioEl = document.getElementById('filtroEstadoSecretario');
 
@@ -573,6 +618,12 @@ async function loadDepositos() {
     if (filtroSecretarioEspecificoEl?.value) {
       params.append('filtro_secretario_doc', filtroSecretarioEspecificoEl.value);
     }
+  } else if (esReporteUsuario) {
+    // Para reportes por usuario, solo mostrar depósitos entregados (estado 1)
+    params.append('filtroEstado', 'entregados');
+    if (filtroUsuarioEspecificoEl?.value) {
+      params.append('filtro_usuario_doc', filtroUsuarioEspecificoEl.value);
+    }
   } else {
     // Filtros del reporte general - todos al backend
     params.append('filtroEstado', filtroEstadoEl?.value || 'entregados');
@@ -646,7 +697,7 @@ function updateVisibleRecordsCount() {
 function aplicarFiltrosSecundariosFrontend() {
   // El reporte general ahora maneja todos los filtros en backend
   // Solo los reportes especializados usan filtros secundarios en frontend
-  if (!esReporteJuzgado && !esReporteSecretario) {
+  if (!esReporteJuzgado && !esReporteSecretario && !esReporteUsuario) {
     return;
   }
   
@@ -750,6 +801,11 @@ if (filtroSecretarioEspecificoEl) {
   filtroSecretarioEspecificoEl.addEventListener('change', aplicarFiltros);
 }
 
+// Event listeners para reporte por usuario
+if (filtroUsuarioEspecificoEl) {
+  filtroUsuarioEspecificoEl.addEventListener('change', aplicarFiltros);
+}
+
 // Cambio de tipo de visualización (Reporte / Usuario / Secretario)
 const filtroVerReporteEl = document.getElementById('filtroVerReporte');
 if (filtroVerReporteEl) {
@@ -770,6 +826,9 @@ document.addEventListener('DOMContentLoaded', () => {
   } else if (esReporteSecretario) {
     // No cargar datos hasta que se seleccione un secretario
     console.log('Reporte por secretario cargado. Seleccione un secretario para ver datos.');
+  } else if (esReporteUsuario) {
+    // No cargar datos hasta que se seleccione un usuario
+    console.log('Reporte por usuario cargado. Seleccione un usuario para ver datos.');
   } else {
     // Cargar datos normalmente para reporte general
     loadDepositos();
@@ -782,7 +841,7 @@ function exportarPDF() {
   const tipoReporte = filtroVerReporteEl ? filtroVerReporteEl.value : 'Reporte';
 
   // Delegamos a funciones específicas según el tipo
-  if (tipoReporte === 'Usuario') {
+  if (tipoReporte === 'Usuario' && !esReporteUsuario) {
     exportarPDFGrafico(tipoReporte);
   } else if (tipoReporte === 'Secretario') {
     exportarPDFGrafico(tipoReporte);
@@ -812,6 +871,12 @@ async function obtenerDatosParaExportacion() {
     params.append('filtroEstado', filtroEstadoSecretarioEl?.value || 'entregados');
     if (filtroSecretarioEspecificoEl?.value) {
       params.append('filtro_secretario_doc', filtroSecretarioEspecificoEl.value);
+    }
+  } else if (esReporteUsuario) {
+    // Para reportes por usuario, solo mostrar depósitos entregados (estado 1)
+    params.append('filtroEstado', 'entregados');
+    if (filtroUsuarioEspecificoEl?.value) {
+      params.append('filtro_usuario_doc', filtroUsuarioEspecificoEl.value);
     }
   } else {
     // Filtros del reporte general - todos al backend
@@ -1078,48 +1143,6 @@ async function exportarPDFGrafico(tipo) {
     doc.text("No se pudo generar el gráfico (error al renderizar canvas).", 14, 50);
   }
 
-    // Página 2: Resumen por Estado usando datos de exportación
-    doc.addPage();
-    
-    const estadoCounts = {};
-    exportData.forEach(deposito => {
-      let estadoText = deposito.nombre_estado || 'SIN ESTADO';
-      
-      // Si es ENTREGADO, normalizar solo a "ENTREGADO"
-      if (deposito.id_estado == 1) {
-        estadoText = 'ENTREGADO';
-      }
-      
-      // Normalizar a mayúsculas para el conteo
-      estadoText = estadoText.toUpperCase();
-      estadoCounts[estadoText] = (estadoCounts[estadoText] || 0) + 1;
-    });
-
-    const estadoRows = Object.entries(estadoCounts).sort((a,b) => b[1]-a[1]).map(([k,v]) => [k, String(v)]);
-    const totalFilas = estadoRows.reduce((s,r) => s + parseInt(r[1],10), 0);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.setTextColor(132, 0, 0);
-    doc.text("Resumen: Cantidad por Estado (datos exportados)", 14, 18);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(11);
-    doc.text(`Total registros: ${totalFilas}`, 14, 26);
-
-    if (estadoRows.length === 0) {
-      doc.setFontSize(12);
-      doc.text("No hay estados para mostrar en el resumen.", 14, 40);
-    } else {
-      doc.autoTable({
-        head: [['Estado','Cantidad']],
-        body: estadoRows,
-        startY: 34,
-        styles: { fontSize: 10, halign: 'left' },
-        headStyles: { fillColor: [132,0,0], textColor: 255 }
-      });
-    }
-
     // Guardar PDF
     const nombreArchivo = tipo === 'Usuario' ? 'reporte_entregas_por_usuario.pdf' : 'reporte_entregas_por_secretario.pdf';
     doc.save(nombreArchivo);
@@ -1249,7 +1272,8 @@ async function exportarPDFReporteCompleto() {
     const entregasCount = {};
     const entregasBySecretary = {};
     const headerTexts = headers.map(h => h.toLowerCase());
-    const tieneSecretario = headerTexts.includes('secretario');
+    // Verificar si los datos exportados contienen información de secretarios
+    const tieneSecretario = exportData.length > 0 && exportData[0].hasOwnProperty('nombre_secretario');
 
     exportData.forEach(deposito => {
       // Contar entregas por usuario
@@ -1752,18 +1776,54 @@ function mostrarVisualizacion(tipo) {
     if (paginationBottom) paginationBottom.classList.remove('oculto');
     if (registrosPaginaParent) registrosPaginaParent.classList.remove('oculto');
     graficosContainer.classList.add('oculto');
-  } else if (tipo === "Usuario") {
-    // Mostrar gráfico de usuarios
+  } else if (tipo === "Usuario" && !esReporteUsuario) {
+    // Mostrar gráfico de usuarios (solo para reportes que no sean por usuario)
     tabla.classList.add('oculto');
-    // NO ocultar elementos de paginación - se mostrarán junto al gráfico
-    if (pageInfoTop) pageInfoTop.classList.remove('oculto');
-    if (pageInfoBottom) pageInfoBottom.classList.remove('oculto');
-    if (paginationTop) paginationTop.classList.remove('oculto');
-    if (paginationBottom) paginationBottom.classList.remove('oculto');
-    if (registrosPaginaParent) registrosPaginaParent.classList.remove('oculto');
+    // Ocultar elementos de paginación para distribuciones
+    if (pageInfoTop) pageInfoTop.classList.add('oculto');
+    if (pageInfoBottom) pageInfoBottom.classList.add('oculto');
+    if (paginationTop) paginationTop.classList.add('oculto');
+    if (paginationBottom) paginationBottom.classList.add('oculto');
+    if (registrosPaginaParent) registrosPaginaParent.classList.add('oculto');
     graficosContainer.classList.remove('oculto');
 
-    const datosUsuario = getEntregasPorUsuario();
+    // Obtener todos los datos para la distribución
+    mostrarDistribucionUsuario();
+  } else if (tipo === "Secretario") {
+    // Mostrar gráfico de secretarios
+    tabla.classList.add('oculto');
+    // Ocultar elementos de paginación para distribuciones
+    if (pageInfoTop) pageInfoTop.classList.add('oculto');
+    if (pageInfoBottom) pageInfoBottom.classList.add('oculto');
+    if (paginationTop) paginationTop.classList.add('oculto');
+    if (paginationBottom) paginationBottom.classList.add('oculto');
+    if (registrosPaginaParent) registrosPaginaParent.classList.add('oculto');
+    graficosContainer.classList.remove('oculto');
+
+    // Obtener todos los datos para la distribución
+    mostrarDistribucionSecretario();
+  }
+}
+
+// Funciones para mostrar distribuciones con todos los datos
+async function mostrarDistribucionUsuario() {
+  try {
+    // Obtener todos los datos sin limitación de paginación
+    const todosLosDatos = await obtenerDatosParaExportacion();
+    
+    if (!todosLosDatos || todosLosDatos.length === 0) {
+      const chartCanvas = document.getElementById("chartCanvas");
+      const ctx = chartCanvas.getContext("2d");
+      ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+      ctx.font = "16px Arial";
+      ctx.fillStyle = "#666";
+      ctx.textAlign = "center";
+      ctx.fillText("No hay datos para mostrar", chartCanvas.width / 2, chartCanvas.height / 2);
+      return;
+    }
+    
+    // Obtener distribución por usuario desde todos los datos
+    const datosUsuario = getEntregasPorUsuarioFromData(todosLosDatos);
     const canvas = drawPieChartOnCanvasInteractive(datosUsuario, "Distribución de entregas por usuario");
     const chartCanvas = document.getElementById("chartCanvas");
     
@@ -1776,18 +1836,31 @@ function mostrarVisualizacion(tipo) {
     chartCanvas.height = canvas.height;
     const ctxNew = chartCanvas.getContext("2d");
     ctxNew.drawImage(canvas, 0, 0);
-  } else if (tipo === "Secretario") {
-    // Mostrar gráfico de secretarios
-    tabla.classList.add('oculto');
-    // NO ocultar elementos de paginación - se mostrarán junto al gráfico
-    if (pageInfoTop) pageInfoTop.classList.remove('oculto');
-    if (pageInfoBottom) pageInfoBottom.classList.remove('oculto');
-    if (paginationTop) paginationTop.classList.remove('oculto');
-    if (paginationBottom) paginationBottom.classList.remove('oculto');
-    if (registrosPaginaParent) registrosPaginaParent.classList.remove('oculto');
-    graficosContainer.classList.remove('oculto');
+    
+  } catch (error) {
+    console.error('Error obteniendo datos para distribución por usuario:', error);
+    Swal.fire('Error', 'No se pudieron obtener los datos para la distribución por usuario.', 'error');
+  }
+}
 
-    const datosSecretario = getEntregasPorSecretario();
+async function mostrarDistribucionSecretario() {
+  try {
+    // Obtener todos los datos sin limitación de paginación
+    const todosLosDatos = await obtenerDatosParaExportacion();
+    
+    if (!todosLosDatos || todosLosDatos.length === 0) {
+      const chartCanvas = document.getElementById("chartCanvas");
+      const ctx = chartCanvas.getContext("2d");
+      ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+      ctx.font = "16px Arial";
+      ctx.fillStyle = "#666";
+      ctx.textAlign = "center";
+      ctx.fillText("No hay datos para mostrar", chartCanvas.width / 2, chartCanvas.height / 2);
+      return;
+    }
+    
+    // Obtener distribución por secretario desde todos los datos
+    const datosSecretario = getEntregasPorSecretarioFromData(todosLosDatos);
     const canvas = drawPieChartOnCanvasInteractive(datosSecretario, "Distribución de entregas por secretario");
     const chartCanvas = document.getElementById("chartCanvas");
     
@@ -1800,6 +1873,10 @@ function mostrarVisualizacion(tipo) {
     chartCanvas.height = canvas.height;
     const ctxNew = chartCanvas.getContext("2d");
     ctxNew.drawImage(canvas, 0, 0);
+    
+  } catch (error) {
+    console.error('Error obteniendo datos para distribución por secretario:', error);
+    Swal.fire('Error', 'No se pudieron obtener los datos para la distribución por secretario.', 'error');
   }
 }
 

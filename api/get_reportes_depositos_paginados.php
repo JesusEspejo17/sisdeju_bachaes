@@ -87,6 +87,26 @@ try {
         }
         // Si es 'todos', no agregar condición de estado
         
+    } elseif ($tipoReporte === 'usuario') {
+        // Filtro por usuario específico que entregó depósitos
+        $filtroUsuarioDoc = isset($_GET['filtro_usuario_doc']) ? trim($_GET['filtro_usuario_doc']) : '';
+        if ($filtroUsuarioDoc) {
+            // Solo mostrar depósitos que fueron entregados por este usuario
+            $whereConditions[] = "dj.id_estado = 1"; // Solo depósitos entregados
+            // Verificar que este usuario específico haya sido quien entregó el depósito
+            // usando la tabla historial_deposito
+            $whereConditions[] = "EXISTS (
+                SELECT 1 FROM historial_deposito hd 
+                WHERE hd.id_deposito = dj.id_deposito 
+                AND hd.documento_usuario = '" . mysqli_real_escape_string($cn, $filtroUsuarioDoc) . "'
+                AND hd.tipo_evento = 'CAMBIO_ESTADO' 
+                AND hd.estado_nuevo = 1
+            )";
+        } else {
+            // Si no hay usuario seleccionado, no mostrar nada
+            $whereConditions[] = "1 = 0";
+        }
+        
     } else {
         // Filtros para reporte general
         $filtroEstado = isset($_GET['filtroEstado']) ? trim($_GET['filtroEstado']) : 'entregados';

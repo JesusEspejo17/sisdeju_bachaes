@@ -1213,7 +1213,7 @@ function mostrarModalAgregarOrden(dep) {
       if (j.success) {
         Swal.fire({
           title: '✅ Orden Agregada',
-          html: `${j.msg}<br><br>Se creó un nuevo registro con ID: <strong>${j.id_deposito_nuevo}</strong>`,
+          html: `${j.msg}`,
           icon: 'success',
           confirmButtonText: 'Aceptar'
         }).then(() => {
