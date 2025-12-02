@@ -164,7 +164,13 @@ $sqlBase = "
         AND hd4.estado_nuevo = 1
       ORDER BY hd4.fecha_historial_deposito ASC
       LIMIT 1
-    ) AS usuario_entrega
+    ) AS usuario_entrega,
+    (
+      -- Última fecha de actividad del depósito (para ordenamiento)
+      SELECT MAX(hd_max.fecha_historial_deposito)
+      FROM historial_deposito hd_max
+      WHERE hd_max.id_deposito = dj.id_deposito
+    ) AS ultima_actividad
   FROM deposito_judicial dj
   JOIN estado e           ON dj.id_estado = e.id_estado
   JOIN persona sec        ON sec.documento = dj.documento_secretario
@@ -173,15 +179,21 @@ $sqlBase = "
   LEFT JOIN persona bene  ON bene.documento = dj.documento_beneficiario
   $where
   ORDER BY
-    -- Primero: observados (estado_observacion = 11) aparecen al inicio
+    -- Nivel 1: Observados (estado_observacion = 11) aparecen al inicio
     CASE WHEN dj.estado_observacion = 11 THEN 0 ELSE 1 END,
-    -- Luego: orden original (pendientes > por entregar > resto)
+    -- Nivel 2: Orden por prioridad de estados (pendientes > por entregar > resto)
     CASE 
       WHEN dj.id_estado IN (3,5,6,8,9) THEN 0
       WHEN dj.id_estado IN (2,7) THEN 1
       ELSE 2
     END,
-    dj.fecha_ingreso_deposito ASC
+    -- Nivel 3: Por última actividad ASC (más antiguos primero, más recientes al final)
+    COALESCE(
+      (SELECT MAX(hd_ord.fecha_historial_deposito) 
+       FROM historial_deposito hd_ord 
+       WHERE hd_ord.id_deposito = dj.id_deposito),
+      dj.fecha_ingreso_deposito
+    ) ASC
 ";
 
 // ---------------- Pagination setup ----------------
