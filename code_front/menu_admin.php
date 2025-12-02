@@ -41,6 +41,7 @@ $viewRoles = [
   'crear_juzgado'         => [1],
   'editar_usuario'        => [1,6],
   'reporte_deposito'      => [1,2,3,4,5,6],
+  'reporte_entrega'       => [1,2,3,4,5,6],
   'cambiar_clave'         => [1,2,3,4,5,6]
 ];
 
@@ -55,6 +56,7 @@ $rutas = [
   'crear_juzgado' => 'vistas/crear_juzgado.php',
   'editar_usuario' => 'usuario_editar.php',
   'reporte_deposito' => 'vistas/reporte_deposito.php',
+  'reporte_entrega' => 'vistas/reporte_entrega.php',
   'cambiar_clave' => 'vistas/cambiar_clave.php'
 ];
 
@@ -139,6 +141,7 @@ function canView(string $vista, int $idRol, array $viewRoles): bool {
     <ul class="submenuItems">
       <?php if (canView('reporte_deposito', $idRol, $viewRoles)): ?>
         <li><a href="?vista=reporte_deposito">Reporte de depósitos</a></li>
+        <li><a href="?vista=reporte_entrega">Reporte de entregas</a></li>
       <?php endif; ?>
 
       <?php if (in_array($idRol, [1,2,3,6], true)): ?>

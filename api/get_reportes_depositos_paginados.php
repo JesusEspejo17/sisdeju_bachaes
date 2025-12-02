@@ -112,6 +112,8 @@ try {
         $filtroEstado = isset($_GET['filtroEstado']) ? trim($_GET['filtroEstado']) : 'entregados';
         $filtroTipo = isset($_GET['filtroTipo']) ? trim($_GET['filtroTipo']) : '';
         $filtroTexto = isset($_GET['filtroTexto']) ? trim($_GET['filtroTexto']) : '';
+        $filtroSecretario = isset($_GET['filtroSecretario']) ? trim($_GET['filtroSecretario']) : '';
+        $filtroFecha = isset($_GET['filtroFecha']) ? trim($_GET['filtroFecha']) : '';
         
         // Aplicar filtro por ESTADO en el backend
         if ($filtroEstado === 'pendientes') {
@@ -124,6 +126,36 @@ try {
             $whereConditions[] = "dj.id_estado = 10";
         }
         // Si es 'todos', no agregar condición
+        
+        // Filtro por secretario específico
+        if ($filtroSecretario) {
+            $whereConditions[] = "dj.documento_secretario='" . mysqli_real_escape_string($cn, $filtroSecretario) . "'";
+        }
+        
+        // Filtro por usuario AOP (rol 4) - filtrar por quien entregó
+        $filtroUsuarioAOP = isset($_GET['filtroUsuarioAOP']) ? trim($_GET['filtroUsuarioAOP']) : '';
+        if ($filtroUsuarioAOP) {
+            $usuarioAOPEscapado = mysqli_real_escape_string($cn, $filtroUsuarioAOP);
+            $whereConditions[] = "EXISTS (
+                SELECT 1 FROM historial_deposito hd 
+                WHERE hd.id_deposito = dj.id_deposito 
+                AND hd.tipo_evento = 'CAMBIO_ESTADO' 
+                AND hd.estado_nuevo = 1
+                AND hd.documento_usuario = '$usuarioAOPEscapado'
+            )";
+        }
+        
+        // Filtro por fecha de finalización
+        if ($filtroFecha) {
+            $fechaEscapada = mysqli_real_escape_string($cn, $filtroFecha);
+            $whereConditions[] = "EXISTS (
+                SELECT 1 FROM historial_deposito hd 
+                WHERE hd.id_deposito = dj.id_deposito 
+                AND hd.tipo_evento = 'CAMBIO_ESTADO' 
+                AND hd.estado_nuevo = 1
+                AND DATE(hd.fecha_historial_deposito) = '$fechaEscapada'
+            )";
+        }
         
         // Filtro por tipo/texto (juzgado o secretario)
         if ($filtroTipo && $filtroTexto) {
