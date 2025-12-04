@@ -43,6 +43,15 @@ $usuarios_aop = [];
 while ($row = mysqli_fetch_assoc($result_usuarios_aop)) {
     $usuarios_aop[] = $row;
 }
+
+// Obtener datos del usuario actual de la sesión
+$usuarioActual = $_SESSION['documento'];
+$sql_usuario_actual = "SELECT CONCAT(p.nombre_persona, ' ', p.apellido_persona) AS nombre_completo,
+                              p.documento
+                       FROM persona p 
+                       WHERE p.documento = '" . mysqli_real_escape_string($cn, $usuarioActual) . "'";
+$result_usuario_actual = mysqli_query($cn, $sql_usuario_actual);
+$datos_usuario_actual = mysqli_fetch_assoc($result_usuario_actual);
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -139,7 +148,7 @@ while ($row = mysqli_fetch_assoc($result_usuarios_aop)) {
 
     <div class="filtro-group">
       <label for="filtroSecretario"><strong>Secretario*:</strong></label>
-      <select id="filtroSecretario">
+      <select id="filtroSecretario" required>
         <option value="">Todos los secretarios</option>
         <?php foreach ($secretarios as $secretario): ?>
           <option value="<?= htmlspecialchars($secretario['documento']) ?>"><?= htmlspecialchars($secretario['nombre_completo']) ?></option>
@@ -147,14 +156,16 @@ while ($row = mysqli_fetch_assoc($result_usuarios_aop)) {
       </select>
       
       <?php if ($idRol != 4): ?>
-      <label for="filtroUsuarioAOP"><strong>Usuario</strong></label>
-      <select id="filtroUsuarioAOP">
+      <label for="filtroUsuarioAOP"><strong>Usuario*:</strong></label>
+      <select id="filtroUsuarioAOP" required>
         <option value="">Todos los usuarios</option>
         <?php foreach ($usuarios_aop as $usuario_aop): ?>
           <option value="<?= htmlspecialchars($usuario_aop['documento']) ?>"><?= htmlspecialchars($usuario_aop['nombre_completo']) ?></option>
         <?php endforeach; ?>
       </select>
       <?php else: ?>
+      <label for="filtroFecha"><strong>Fecha de finalización*:</strong></label>
+      <input type="date" id="filtroFecha" placeholder="Seleccione una fecha" required>
       <!-- Usuario AOP (rol 4): filtro automático oculto -->
       <input type="hidden" id="filtroUsuarioAOP" value="<?= htmlspecialchars($_SESSION['documento']) ?>">
       <?php endif; ?>
@@ -162,10 +173,12 @@ while ($row = mysqli_fetch_assoc($result_usuarios_aop)) {
       <input type="button" value="Exportar PDF" onclick="exportarPDF()" style="height: 38px; margin-top: 0; padding: 10px 25px;">
     </div>
 
+    <?php if ($idRol != 4): ?>
     <div class="filtro-group">
-      <label for="filtroFecha"><strong>Fecha de finalización:</strong></label>
-      <input type="date" id="filtroFecha" placeholder="Seleccione una fecha">
+      <label for="filtroFecha"><strong>Fecha de finalización*:</strong></label>
+      <input type="date" id="filtroFecha" placeholder="Seleccione una fecha" required>
     </div>
+    <?php endif; ?>
 
     <!-- Loading spinner -->
     <div id="loading" class="loading">
@@ -227,6 +240,9 @@ let isLoading = false;
 let allDataForExport = []; // Para almacenar todos los datos visibles para exportación
 
 const userRole = <?= json_encode($idRol) ?>;
+const secretarios = <?= json_encode($secretarios) ?>;
+const usuariosAOP = <?= json_encode($usuarios_aop) ?>;
+const usuarioActual = <?= json_encode($datos_usuario_actual) ?>;
 const filtroEstadoEl = document.getElementById('filtroEstado');
 const filtroTipoEl = document.getElementById('filtroTipo');
 const filtroTextoEl = document.getElementById('filtroTexto');
@@ -636,10 +652,11 @@ if (filtroUsuarioAOPEl && filtroUsuarioAOPEl.type !== 'hidden') {
   filtroUsuarioAOPEl.addEventListener('change', aplicarFiltros);
 }
 
-// Cambios en filtros secundarios (juzgado/secretario/fechas): filtrar en frontend
+// Cambios en filtros secundarios (juzgado/secretario): filtrar en frontend
 if (filtroTipoEl) filtroTipoEl.addEventListener('change', aplicarFiltrosSecundariosFrontend);
 if (filtroTextoEl) filtroTextoEl.addEventListener('input', debouncedAplicarSecundarios);
-filtroFechaEl.addEventListener('change', aplicarFiltrosSecundariosFrontend);
+// Filtro de fecha: recargar desde API para obtener todos los registros de esa fecha
+filtroFechaEl.addEventListener('change', aplicarFiltros);
 
 
 
@@ -650,7 +667,31 @@ registrosPorPaginaEl.addEventListener('change', aplicarFiltros);
 document.addEventListener('DOMContentLoaded', loadDepositos);
 
 function exportarPDF() {
-  // Exportar solo el reporte completo con tabla
+  // Validar que todos los filtros obligatorios estén seleccionados
+  const secretario = filtroSecretarioEl.value;
+  const fecha = filtroFechaEl.value;
+  const usuarioAOP = filtroUsuarioAOPEl.value;
+  
+  // Verificar filtros obligatorios según el rol
+  if (!secretario) {
+    Swal.fire('Error', 'Debe seleccionar un secretario específico para exportar el PDF.', 'error');
+    return;
+  }
+  
+  if (!fecha) {
+    Swal.fire('Error', 'Debe seleccionar una fecha de finalización para exportar el PDF.', 'error');
+    return;
+  }
+  
+  // Para usuarios que no son AOP (rol 4), verificar que hayan seleccionado usuario
+  <?php if ($idRol != 4): ?>
+  if (!usuarioAOP) {
+    Swal.fire('Error', 'Debe seleccionar un usuario específico para exportar el PDF.', 'error');
+    return;
+  }
+  <?php endif; ?>
+  
+  // Si todas las validaciones pasan, exportar el PDF
   exportarPDFReporteCompleto();
 }
 
@@ -681,16 +722,15 @@ async function obtenerDatosParaExportacion() {
     throw new Error(data.message || 'Error desconocido');
   }
 
-  // Aplicar filtros secundarios si existen (similar a como se hace en el frontend)
+  // Ya no necesitamos filtros secundarios en el frontend porque ahora
+  // el filtro de fecha se maneja completamente en el backend
   let filteredData = data.data;
   
   const tipo = filtroTipoEl?.value;
   const texto = filtroTextoEl?.value.toLowerCase() || '';
-  const fechaSeleccionada = filtroFechaEl.value;
-  const usarFecha = fechaSeleccionada;
 
-  // Aplicar filtros secundarios si existen
-  if (texto || usarFecha) {
+  // Solo aplicar filtros de texto si existen (el filtro de fecha ya se aplicó en backend)
+  if (texto) {
     filteredData = data.data.filter(deposito => {
       let coincide = true;
       
@@ -701,13 +741,6 @@ async function obtenerDatosParaExportacion() {
         } else if (tipo === 'secretario') {
           coincide = coincide && (deposito.nombre_secretario || '').toLowerCase().includes(texto);
         }
-      }
-      
-      // Filtrar por fecha de finalización
-      if (usarFecha && deposito.fecha_finalizacion) {
-        // Extraer solo la fecha (sin hora) para comparación
-        const fechaFinal = deposito.fecha_finalizacion.split(' ')[0]; // Obtener solo YYYY-MM-DD
-        coincide = coincide && (fechaFinal === fechaSeleccionada);
       }
       
       return coincide;
@@ -823,7 +856,7 @@ async function exportarPDFReporteCompleto() {
     const body = [];
 
     // Verificar filtros activos para determinar columnas visibles
-    const secretarioSeleccionado = filtroSecretarioEl.value;
+    const filtroSecretarioActivo = filtroSecretarioEl.value;
     const usuarioAOPSeleccionado = filtroUsuarioAOPEl.value;
     const esUsuarioAOP = userRole === 4;
 
@@ -833,7 +866,7 @@ async function exportarPDFReporteCompleto() {
       if (texto.toLowerCase().includes('juzgado')) {
         return; // Omitir columna Juzgado siempre
       }
-      if (texto.toLowerCase().includes('secretario') && secretarioSeleccionado) {
+      if (texto.toLowerCase().includes('secretario') && filtroSecretarioActivo) {
         return; // Omitir columna Secretario si hay filtro activo
       }
       if (texto.toLowerCase().includes('estado') && (esUsuarioAOP || usuarioAOPSeleccionado)) {
@@ -841,6 +874,9 @@ async function exportarPDFReporteCompleto() {
       }
       headers.push(texto);
     });
+    
+    // Agregar columna Observación al final (solo para PDF)
+    headers.push('Observación');
 
     // Construir filas desde los datos de exportación
     exportData.forEach((deposito) => {
@@ -884,6 +920,9 @@ async function exportarPDFReporteCompleto() {
       const fechaFinalizacion = deposito.fecha_finalizacion ? formatDate(deposito.fecha_finalizacion) : '--';
       row.push(fechaFinalizacion);
       
+      // Observación (columna vacía)
+      row.push('');
+      
       body.push(row);
     });
 
@@ -912,13 +951,35 @@ async function exportarPDFReporteCompleto() {
     doc.setFontSize(8);
     doc.setTextColor(0, 0, 0);
     
-    // Firma izquierda
-    doc.text("[Nombre del Secretario]", xIzquierda + (anchuraLinea / 2), yInicio + 4, { align: "center" });
-    doc.text("DNI: [00000000]", xIzquierda + (anchuraLinea / 2), yInicio + 8, { align: "center" });
+    // Obtener datos del secretario seleccionado
+    const secretarioSeleccionado = filtroSecretarioEl.value;
+    const secretario = secretarios.find(s => s.documento === secretarioSeleccionado);
+    const nombreSecretario = secretario ? secretario.nombre_completo : 'Secretario';
+    const dniSecretario = secretario ? secretario.documento : '00000000';
     
-    // Firma derecha
-    doc.text("[Nombre del Administrador]", xDerecha + (anchuraLinea / 2), yInicio + 4, { align: "center" });
-    doc.text("DNI: [00000000]", xDerecha + (anchuraLinea / 2), yInicio + 8, { align: "center" });
+    // Obtener datos del usuario para firma derecha
+    let nombreUsuario = 'Administrador';
+    let dniUsuario = '00000000';
+    
+    if (userRole === 4) {
+      // Si el usuario actual es AOP (rol 4), usar sus datos
+      nombreUsuario = usuarioActual ? usuarioActual.nombre_completo : 'AOP';
+      dniUsuario = usuarioActual ? usuarioActual.documento : '00000000';
+    } else {
+      // Si el usuario no es AOP, usar el usuario seleccionado en el filtro
+      const usuarioAOPSeleccionado = filtroUsuarioAOPEl.value;
+      const usuario = usuariosAOP.find(u => u.documento === usuarioAOPSeleccionado);
+      nombreUsuario = usuario ? usuario.nombre_completo : 'Administrador';
+      dniUsuario = usuario ? usuario.documento : '00000000';
+    }
+    
+    // Firma izquierda (Secretario)
+    doc.text(nombreSecretario, xIzquierda + (anchuraLinea / 2), yInicio + 4, { align: "center" });
+    doc.text(`DNI: ${dniSecretario}`, xIzquierda + (anchuraLinea / 2), yInicio + 8, { align: "center" });
+    
+    // Firma derecha (Usuario/Administrador)
+    doc.text(nombreUsuario, xDerecha + (anchuraLinea / 2), yInicio + 4, { align: "center" });
+    doc.text(`DNI: ${dniUsuario}`, xDerecha + (anchuraLinea / 2), yInicio + 8, { align: "center" });
   }
 
   // Página 1: tabla
@@ -985,11 +1046,19 @@ async function exportarPDFReporteCompleto() {
   doc.setLineWidth(0.3);
   doc.setDrawColor(132, 0, 0);
   doc.line(14, 52, doc.internal.pageSize.getWidth() - 14, 52);
+  
+  // Mostrar nombre del secretario seleccionado
+  const secretarioSeleccionadoNombre = filtroSecretarioEl.options[filtroSecretarioEl.selectedIndex].text;
+  if (secretarioSeleccionadoNombre && secretarioSeleccionadoNombre !== 'Todos los secretarios') {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(`Secretario: ${secretarioSeleccionadoNombre}`, 14, 57);
+  }
 
   doc.autoTable({
     head: [headers],
     body: body,
-    startY: 62,
+    startY: 61,
     margin: { 
       top: 35, // Espacio para el encabezado
       bottom: 50, // Espacio aumentado para el pie de página

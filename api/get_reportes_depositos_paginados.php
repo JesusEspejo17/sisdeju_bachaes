@@ -191,14 +191,18 @@ try {
     $total_records = mysqli_fetch_assoc($result_count)['total'];
     $total_pages = $usePagination ? ceil($total_records / $limit) : 1;
     
-    // Construir el ORDER BY
+    // Construir el ORDER BY - Ordenar por fecha de finalización del más antiguo al más reciente
     $orderBy = "
       ORDER BY
-        CASE
-          WHEN dj.id_estado IN (3,5) THEN 0
-          WHEN dj.id_estado = 2 THEN 1
-          ELSE 2
-        END,
+        (
+          SELECT hd_order.fecha_historial_deposito
+          FROM historial_deposito hd_order
+          WHERE hd_order.id_deposito = dj.id_deposito
+            AND hd_order.tipo_evento = 'CAMBIO_ESTADO'
+            AND hd_order.estado_nuevo = 1
+          ORDER BY hd_order.fecha_historial_deposito ASC
+          LIMIT 1
+        ) ASC,
         dj.fecha_ingreso_deposito ASC
     ";
     
