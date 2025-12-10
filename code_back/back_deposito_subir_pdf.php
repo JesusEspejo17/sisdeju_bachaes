@@ -23,6 +23,14 @@ function extract_deposit_from_filename($filename) {
         if (preg_match('/\d/', $s[$i])) {
             $candidate = substr($s, $i, 13);
             if (preg_match('/^\d{13}$/', $candidate)) {
+                // Buscar patrón _X después del número base de 13 dígitos
+                $afterPos = $i + 13;
+                if ($afterPos < $len && $s[$afterPos] === '_' && $afterPos + 1 < $len && preg_match('/\d/', $s[$afterPos + 1])) {
+                    $suffixDigit = $s[$afterPos + 1];
+                    // Formatear como XXXXXXXXXXXXX-00X
+                    return $candidate . '-' . str_pad($suffixDigit, 3, '0', STR_PAD_LEFT);
+                }
+                // Si no hay sufijo _X, devolver solo el número base de 13 dígitos
                 $nextChar = $s[$i + 13] ?? '';
                 if ($nextChar === '' || $nextChar === '_' || !preg_match('/\d/', $nextChar)) {
                     return $candidate;
@@ -30,9 +38,20 @@ function extract_deposit_from_filename($filename) {
             }
         }
     }
+    // Fallback: buscar cualquier secuencia de 13 dígitos (formato base)
     if (preg_match_all('/\d{13}/', $s, $m)) {
         $arr = $m[0];
-        return end($arr);
+        $baseNumber = end($arr);
+        // Buscar si hay sufijo _X después de este número
+        $pos = strrpos($s, $baseNumber);
+        if ($pos !== false) {
+            $afterPos = $pos + 13;
+            if ($afterPos < $len && $s[$afterPos] === '_' && $afterPos + 1 < $len && preg_match('/\d/', $s[$afterPos + 1])) {
+                $suffixDigit = $s[$afterPos + 1];
+                return $baseNumber . '-' . str_pad($suffixDigit, 3, '0', STR_PAD_LEFT);
+            }
+        }
+        return $baseNumber;
     }
     return null;
 }
@@ -66,8 +85,8 @@ function savePdfWithPattern($file, $tipo, $n_deposito, $destDir, $maxBytes) {
     finfo_close($finfo);
     if ($mime !== 'application/pdf') throw new Exception("Solo se aceptan PDFs. Archivo: " . ($file['name'] ?? '') . " (mime: $mime)");
 
-    // normalizar n_deposito
-    $n = $n_deposito ? preg_replace('/\D+/', '', $n_deposito) : 'no-dep';
+    // normalizar n_deposito (preservar formato con guión si existe)
+    $n = $n_deposito ? str_replace('-', '_', $n_deposito) : 'no-dep';
     // timestamp
     $ts_date = date('Ymd'); // YYYYMMDD
     $ts_time = date('His'); // HHMMSS
@@ -159,19 +178,27 @@ foreach ($orden_files as $idx => $f) {
         $basename = pathinfo($name, PATHINFO_FILENAME);
         $basename = preg_replace('/\s*\(.+\)\s*$/', '', $basename);
 
-        // 1) Si comienza con FIRMA_ -> preferimos extraer el 13 dígitos que van en la 2ª porción
+        // 1) Si comienza con FIRMA_ -> preferimos extraer los 13 dígitos base que van en la 2ª porción
         if (preg_match('/^FIRMA_/i', $basename)) {
             $parts = preg_split('/_+/', $basename);
             $candidate = null;
 
             if (isset($parts[1])) {
-                // primero tratar de sacar 13 dígitos al final de esa porción (caso típico)
+                // primero tratar de sacar 13 dígitos base al final de esa porción (caso típico)
                 if (preg_match('/(\d{13})$/', $parts[1], $m)) {
                     $candidate = $m[1];
+                    // Buscar si hay sufijo _X después en las siguientes partes
+                    if (isset($parts[2]) && preg_match('/^(\d)/', $parts[2], $suffixMatch)) {
+                        $candidate = $candidate . '-' . str_pad($suffixMatch[1], 3, '0', STR_PAD_LEFT);
+                    }
                 } else {
-                    // si no existe al final, buscar cualquier secuencia de 13 dígitos en esa porción
+                    // si no existe al final, buscar cualquier secuencia de 13 dígitos base en esa porción
                     if (preg_match('/(\d{13})/', $parts[1], $m2)) {
                         $candidate = $m2[1];
+                        // Buscar si hay sufijo _X después en las siguientes partes
+                        if (isset($parts[2]) && preg_match('/^(\d)/', $parts[2], $suffixMatch)) {
+                            $candidate = $candidate . '-' . str_pad($suffixMatch[1], 3, '0', STR_PAD_LEFT);
+                        }
                     }
                 }
             }
@@ -179,9 +206,18 @@ foreach ($orden_files as $idx => $f) {
             // fallback: buscar cualquier 13-digit en todo el basename (por precaución)
             if (!$candidate && preg_match('/(\d{13})/', $basename, $m3)) {
                 $candidate = $m3[1];
+                // Buscar patrón _X después del match
+                $pos = strpos($basename, $candidate);
+                if ($pos !== false) {
+                    $afterPos = $pos + 13;
+                    if ($afterPos < strlen($basename) && $basename[$afterPos] === '_' && $afterPos + 1 < strlen($basename) && preg_match('/\d/', $basename[$afterPos + 1])) {
+                        $suffixDigit = $basename[$afterPos + 1];
+                        $candidate = $candidate . '-' . str_pad($suffixDigit, 3, '0', STR_PAD_LEFT);
+                    }
+                }
             }
 
-            if ($candidate && preg_match('/^\d{13}$/', $candidate)) {
+            if ($candidate && (preg_match('/^\d{13}$/', $candidate) || preg_match('/^\d{13}-\d{3}$/', $candidate))) {
                 $extracted = $candidate;
             }
         }
@@ -202,9 +238,12 @@ foreach ($orden_files as $idx => $f) {
 
 // Si front mandó un n_deposito general (fallback), lo consideramos para la primera orden solo si no se extrajo
 if ($n_dep_post_raw && (!isset($extracted_n_by_order[0]) || !$extracted_n_by_order[0])) {
-    $n_dep_post_raw = preg_replace('/\D+/', '', $n_dep_post_raw);
-    if (!preg_match('/^\d{13}$/', $n_dep_post_raw)) $n_dep_post_raw = null;
-    if ($n_dep_post_raw) $extracted_n_by_order[0] = $n_dep_post_raw;
+    // Validar formato: 13 dígitos o 17 caracteres (13 dígitos-3 dígitos)
+    if (preg_match('/^\d{13}$/', $n_dep_post_raw) || preg_match('/^\d{13}-\d{3}$/', $n_dep_post_raw)) {
+        $extracted_n_by_order[0] = $n_dep_post_raw;
+    } else {
+        $n_dep_post_raw = null;
+    }
 }
 
 // --- preparar carpeta ---
@@ -505,11 +544,10 @@ try {
             $ordenRutaThis = $orden_rutas_rel[$i];
             $nThis = $extracted_n_by_order[$i] ?? null;
 
-            // LIMPIAR y validar formato si viene
+            // Validar formato si viene (ya no limpiar con preg_replace para preservar formato con guión)
             if ($nThis) {
-                $nThis = preg_replace('/\D+/', '', $nThis);
-                if (!preg_match('/^\d{13}$/', $nThis)) {
-                    throw new Exception("Número de depósito extraído inválido para la orden " . ($i+1));
+                if (!preg_match('/^\d{13}$/', $nThis) && !preg_match('/^\d{13}-\d{3}$/', $nThis)) {
+                    throw new Exception("Número de depósito extraído inválido para la orden " . ($i+1) . ". Debe ser formato XXXXXXXXXXXXX o XXXXXXXXXXXXX-XXX");
                 }
                 // <<== Nota: NO HACEMOS CHECK de existencia en BD; permitimos duplicados
             }

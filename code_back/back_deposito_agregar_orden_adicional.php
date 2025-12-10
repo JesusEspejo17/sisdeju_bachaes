@@ -30,6 +30,14 @@ function extract_deposit_from_filename($filename) {
         if (preg_match('/\d/', $s[$i])) {
             $candidate = substr($s, $i, 13);
             if (preg_match('/^\d{13}$/', $candidate)) {
+                // Buscar patrón _X después del número base de 13 dígitos
+                $afterPos = $i + 13;
+                if ($afterPos < $len && $s[$afterPos] === '_' && $afterPos + 1 < $len && preg_match('/\d/', $s[$afterPos + 1])) {
+                    $suffixDigit = $s[$afterPos + 1];
+                    // Formatear como XXXXXXXXXXXXX-00X
+                    return $candidate . '-' . str_pad($suffixDigit, 3, '0', STR_PAD_LEFT);
+                }
+                // Si no hay sufijo _X, devolver solo el número base de 13 dígitos
                 $nextChar = $s[$i + 13] ?? '';
                 if ($nextChar === '' || $nextChar === '_' || !preg_match('/\d/', $nextChar)) {
                     return $candidate;
@@ -37,9 +45,20 @@ function extract_deposit_from_filename($filename) {
             }
         }
     }
+    // Fallback: buscar cualquier secuencia de 13 dígitos (formato base)
     if (preg_match_all('/\d{13}/', $s, $m)) {
         $arr = $m[0];
-        return end($arr);
+        $baseNumber = end($arr);
+        // Buscar si hay sufijo _X después de este número
+        $pos = strrpos($s, $baseNumber);
+        if ($pos !== false) {
+            $afterPos = $pos + 13;
+            if ($afterPos < $len && $s[$afterPos] === '_' && $afterPos + 1 < $len && preg_match('/\d/', $s[$afterPos + 1])) {
+                $suffixDigit = $s[$afterPos + 1];
+                return $baseNumber . '-' . str_pad($suffixDigit, 3, '0', STR_PAD_LEFT);
+            }
+        }
+        return $baseNumber;
     }
     return null;
 }
@@ -57,20 +76,37 @@ function extract_deposit_robust($filename) {
         $candidate = null;
         
         if (isset($parts[1])) {
-            // Buscar 13 dígitos al final de esa porción
+            // Buscar 13 dígitos base al final de esa porción
             if (preg_match('/(\d{13})$/', $parts[1], $m)) {
                 $candidate = $m[1];
+                // Buscar si hay sufijo _X después en las siguientes partes
+                if (isset($parts[2]) && preg_match('/^(\d)/', $parts[2], $suffixMatch)) {
+                    $candidate = $candidate . '-' . str_pad($suffixMatch[1], 3, '0', STR_PAD_LEFT);
+                }
             } else if (preg_match('/(\d{13})/', $parts[1], $m2)) {
                 $candidate = $m2[1];
+                // Buscar si hay sufijo _X después en las siguientes partes
+                if (isset($parts[2]) && preg_match('/^(\d)/', $parts[2], $suffixMatch)) {
+                    $candidate = $candidate . '-' . str_pad($suffixMatch[1], 3, '0', STR_PAD_LEFT);
+                }
             }
         }
         
         // Fallback: buscar en todo el basename
         if (!$candidate && preg_match('/(\d{13})/', $basename, $m3)) {
             $candidate = $m3[1];
+            // Buscar patrón _X después del match
+            $pos = strpos($basename, $candidate);
+            if ($pos !== false) {
+                $afterPos = $pos + 13;
+                if ($afterPos < strlen($basename) && $basename[$afterPos] === '_' && $afterPos + 1 < strlen($basename) && preg_match('/\d/', $basename[$afterPos + 1])) {
+                    $suffixDigit = $basename[$afterPos + 1];
+                    $candidate = $candidate . '-' . str_pad($suffixDigit, 3, '0', STR_PAD_LEFT);
+                }
+            }
         }
         
-        if ($candidate && preg_match('/^\d{13}$/', $candidate)) {
+        if ($candidate && (preg_match('/^\d{13}$/', $candidate) || preg_match('/^\d{13}-\d{3}$/', $candidate))) {
             return $candidate;
         }
     }
@@ -92,8 +128,8 @@ function savePdfWithPattern($file, $tipo, $n_deposito, $destDir, $maxBytes) {
     finfo_close($finfo);
     if ($mime !== 'application/pdf') throw new Exception("Solo se aceptan PDFs. Archivo: " . ($file['name'] ?? '') . " (mime: $mime)");
 
-    // normalizar n_deposito
-    $n = $n_deposito ? preg_replace('/\D+/', '', $n_deposito) : 'no-dep';
+    // normalizar n_deposito (preservar formato con guión si existe)
+    $n = $n_deposito ? str_replace('-', '_', $n_deposito) : 'no-dep';
     // timestamp
     $ts_date = date('Ymd'); // YYYYMMDD
     $ts_time = date('His'); // HHMMSS
@@ -185,8 +221,8 @@ try {
     // EXTRAER n_deposito del nombre del archivo de orden
     $n_deposito_nuevo = extract_deposit_robust($orden_file['name']);
     
-    if (!$n_deposito_nuevo || !preg_match('/^\d{13}$/', $n_deposito_nuevo)) {
-        throw new Exception("No se pudo extraer el número de depósito (13 dígitos) del archivo de orden. Asegúrate que el nombre del archivo contiene el número de depósito.");
+    if (!$n_deposito_nuevo || (!preg_match('/^\d{13}$/', $n_deposito_nuevo) && !preg_match('/^\d{13}-\d{3}$/', $n_deposito_nuevo))) {
+        throw new Exception("No se pudo extraer el número de depósito del archivo de orden. Debe ser formato XXXXXXXXXXXXX o XXXXXXXXXXXXX-XXX. Archivo: " . $orden_file['name']);
     }
     
     error_log("=== N_DEPOSITO EXTRAIDO ===");

@@ -10,7 +10,7 @@
 // ---------------------------------------------------------------------
 
 let chatDepositoActual = "";   // id_deposito (numérico) o string si viene así
-let chatNDepositoActual = "";  // n_deposito (13 dígitos)
+let chatNDepositoActual = "";  // n_deposito (13 dígitos base o formato extendido XXXXXXXXXXXXX-XXX)
 let estadoActualChat   = 0;
 
 // --- Polling / notificaciones (nuevas variables globales) ---
@@ -190,7 +190,7 @@ function extractDepositFromFilename(filename) {
   for (let i = 0; i <= s.length - 13; i++) {
     if (/\d/.test(s[i])) {
       const candidate = s.substr(i, 13);
-      if (/^\d{13}$/.test(candidate)) {
+      if (/^\d{13}$/.test(candidate) || /^\d{13}-\d{3}$/.test(candidate)) {
         const nextChar = s[i + 13] || '';
         if (nextChar === '' || nextChar === '_' || !/\d/.test(nextChar)) {
           return candidate;
@@ -198,7 +198,7 @@ function extractDepositFromFilename(filename) {
       }
     }
   }
-  const m = s.match(/\d{13}/g);
+  const m = s.match(/\d{13}(?:-\d{3})?/g);
   return (m && m.length) ? m[m.length - 1] : null;
 }
 
@@ -384,10 +384,23 @@ function extractDepositFromFirmaFilename(filename) {
 
   // Queda: FIRMA_<TOKEN>[_...]
   const after = cleaned.slice(6);                       // quita "FIRMA_"
-  const token = (after.split('_')[0] || '').replace(/\D/g, ''); // primer token solo dígitos
+  const parts = after.split('_');
+  const token = (parts[0] || '').replace(/\D/g, '');    // primer token solo dígitos
 
   if (token.length < 13) return null;                   // inválido si no llega a 13
-  return token.slice(-13);                              // SIEMPRE los últimos 13
+  const baseNumber = token.slice(-13);                  // últimos 13 dígitos
+
+  // Buscar patrón _X después del número base (similar a lógica PHP)
+  if (parts.length > 1) {
+    const nextPart = parts[1];
+    const suffixMatch = nextPart.match(/^(\d+)/);       // dígitos al inicio de la siguiente parte
+    if (suffixMatch) {
+      const suffix = suffixMatch[1].padStart(3, '0');   // rellenar con ceros a la izquierda
+      return `${baseNumber}-${suffix}`;                 // formato extendido XXXXXXXXXXXXX-XXX
+    }
+  }
+
+  return baseNumber;                                     // formato base 13 dígitos
 }
 
 
@@ -430,7 +443,7 @@ function extractDepositFromFirmaFilename(filename) {
       abrirModal("Subir Orden y Resolución (PDF)", `
         <form id="formOrdenPdf" enctype="multipart/form-data" style="text-align:center;">
           <div style="margin-bottom:8px;">
-            <label style="font-weight:600;">Nro de Depósito (13 dígitos)</label><br>
+            <label style="font-weight:600;">Nro de Depósito</label><br>
             <input type="text" id="nDepositoInput" name="n_deposito" placeholder="Opcional: autoextraído desde el nombre del archivo de ORDEN" style="width:80%;padding:6px;" autocomplete="off" />
             <div id="nDepositNote" style="margin-top:6px;"></div>
           </div>
@@ -661,19 +674,19 @@ function extractDepositFromFirmaFilename(filename) {
           }
         }
 
-        // determinar n_deposito solo desde ORDEN
-        let nVal = (nDepositoInput.value || '').trim().replace(/\D/g,'');
+        // determinar n_deposito conservando formato completo
+        let nVal = (nDepositoInput.value || '').trim();
         if (!nVal) {
           const fromFiles = ordenFiles.length ? getDepositFromOrderFilename(ordenFiles[0].name) : '';
-          nVal = (fromFiles || (chatNDepositoActual ? String(chatNDepositoActual).replace(/\D/g,'') : '')).replace(/\D/g,'');
+          nVal = fromFiles || (chatNDepositoActual ? String(chatNDepositoActual) : '');
           if (fromFiles && (!nDepositoInput.value || nDepositoInput.value.trim() === '')) {
             nDepositoInput.value = fromFiles;
             nDepositoInput.dispatchEvent(new Event('change', { bubbles: true }));
           }
         }
 
-        if (nVal && !/^\d{13}$/.test(nVal)) {
-          return Swal.fire("Error", `El número de depósito debe tener exactamente 13 dígitos. Valor detectado: "${nVal}" (${nVal.length} dígitos).`, "error");
+        if (nVal && !/^\d{13}$/.test(nVal) && !/^\d{13}-\d{3}$/.test(nVal)) {
+          return Swal.fire("Error", `El número de depósito debe tener formato válido (13 caracteres o XXXXXXXXXXXXX-XXX). Valor detectado: "${nVal}".`, "error");
         }
 
         // determinar idToSend (origen para duplicar)
@@ -1991,7 +2004,7 @@ async function abrirEdicionDeposito(icon) {
         
         if (depositoVal && depositoVal.length !== 13) {
           console.log('ERROR: Depósito inválido:', depositoVal);
-          Swal.showValidationMessage('Si ingresa número de depósito, debe tener exactamente 13 dígitos');
+          Swal.showValidationMessage('Si ingresa número de depósito, debe tener formato válido (13 caracteres o XXXXXXXXXXXXX-XXX)');
           return false;
         }
         console.log('✓ Número de depósito válido');
@@ -2164,7 +2177,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const rawDep    = ic.dataset.dep || '';
     const ndepAttr  = ic.dataset.ndep || null;
 
-    const isDep13 = /^\d{13}$/.test(rawDep);
+    const isDep13 = /^\d{13}$/.test(rawDep) || /^\d{13}-\d{3}$/.test(rawDep);
     const isDigitsOnly = /^\d+$/.test(rawDep);
 
     const idDep = idDepAttr || (isDigitsOnly && !isDep13 ? rawDep : null);

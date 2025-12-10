@@ -202,10 +202,10 @@ foreach ($exp_rows as $er) {
     <div id="depositos-container" style="width:100%; max-width:520px;">
       <label for="expediente_1">Nº de Depósito Judicial <small class="muted">(opcional)</small></label>
       <div class="form-row">
-        <input type="text" name="txt_nro_deposito[]" placeholder="Número de Depósito (opcional)" maxlength="13" autocomplete="off" style="flex:1;">
+        <input type="text" name="txt_nro_deposito[]" placeholder="Número de Depósito (opcional)" maxlength="17" autocomplete="off" style="flex:1;">
         <button type="button" onclick="agregarCampoDeposito()">➕</button>
       </div>
-      <div class="muted" style="margin-top:6px;">Si no registra depósitos, puede enviar el formulario igual. Si ingresa números, cada uno debe tener entre 8 y 13 caracteres.</div>
+      <div class="muted" style="margin-top:6px;">Si no registra depósitos, puede enviar el formulario igual. Si ingresa números, cada uno debe tener formato válido (17 caracteres o XXXXXXXXXXXXX-XXX).</div>
     </div>
 
   <hr style="width:100%; margin:16px 0;">
@@ -386,7 +386,7 @@ function agregarCampoDeposito() {
   const nuevo = document.createElement("div");
   nuevo.className = "form-row";
   nuevo.innerHTML = `
-    <input type="text" name="txt_nro_deposito[]" placeholder="Número de Depósito (opcional)" maxlength="13" autocomplete="off" style="flex:1;">
+    <input type="text" name="txt_nro_deposito[]" placeholder="Número de Depósito (opcional)" maxlength="17" autocomplete="off" style="flex:1;">
     <button type="button" onclick="this.parentNode.remove()">❌</button>
   `;
   contenedor.appendChild(nuevo);
@@ -1044,8 +1044,8 @@ document.getElementById("form-deposito").addEventListener("submit", async functi
       if (nro === null || nro === undefined) continue;
       nro = String(nro).trim();
       if (nro === "") continue; // campo vacío -> permitido (opcional)
-      if (nro.length < 8 || nro.length > 13) {
-        return Swal.fire("❌ Error", "Cada depósito (si se ingresa) debe tener entre 8 y 13 caracteres", "error");
+      if (nro.length < 8 || nro.length > 17) {
+        return Swal.fire("❌ Error", "Cada depósito (si se ingresa) debe tener entre 8 y 17 caracteres", "error");
       }
     }
 
@@ -1200,7 +1200,7 @@ document.getElementById('modal-confirm').addEventListener('click', async functio
       if (expedienteExistenteHidden) expedienteExistenteHidden.value = "";
       document.getElementById("depositos-container").innerHTML = `
         <div class="form-row">
-          <input type="text" name="txt_nro_deposito[]" placeholder="Número de Depósito (opcional)" maxlength="13" autocomplete="off" style="flex:1;">
+          <input type="text" name="txt_nro_deposito[]" placeholder="Número de Depósito (opcional)" maxlength="17" autocomplete="off" style="flex:1;">
           <button type="button" onclick="agregarCampoDeposito()">➕</button>
         </div>
       `;

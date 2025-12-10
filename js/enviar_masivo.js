@@ -32,7 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (/^\d+$/.test(candidate) && candidate.length < 13) {
       return parseInt(candidate, 10);
     }
-    if (/^\d{13}$/.test(candidate)) {
+    if (/^\d{13}$/.test(candidate) || /^\d{13}-\d{3}$/.test(candidate)) {
       const other = document.querySelector(`#tabla-depositos tbody tr[data-deposito="${candidate}"]`);
       if (other) {
         const cand2 = other.dataset.iddep || other.dataset.id || other.dataset.id_deposito ||
@@ -200,7 +200,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const payloadItem = { telefono: telNorm, mensaje: mensaje, enviado: false };
       if (resolvedId) payloadItem.id_deposito = resolvedId;
-      else if (rawId && /^\d{13}$/.test(rawId)) payloadItem.n_deposito = rawId;
+      else if (rawId && (/^\d{13}$/.test(rawId) || /^\d{13}-\d{3}$/.test(rawId))) payloadItem.n_deposito = rawId;
 
       datos.push(payloadItem);
       resumen.push(`📲 ${nombre} (${telefonoRaw})`);

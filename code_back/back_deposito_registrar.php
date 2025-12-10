@@ -24,8 +24,8 @@ if (!$usuario) {
   echo json_encode(["success" => false, "msg" => "Usuario no autenticado."]);
   exit;
 }
-if ($n_dep !== '' && !preg_match('/^\d{13}$/', $n_dep)) {
-  echo json_encode(["success" => false, "msg" => "n_deposito inválido (debe ser 13 dígitos)."]);
+if ($n_dep !== '' && !preg_match('/^\d{13}$/', $n_dep) && !preg_match('/^\d{13}-\d{3}$/', $n_dep)) {
+  echo json_encode(["success" => false, "msg" => "n_deposito inválido (debe ser formato XXXXXXXXXXXXX o XXXXXXXXXXXXX-XXX)."]);
   exit;
 }
 

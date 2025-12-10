@@ -48,8 +48,8 @@ if ($nuevoExp === '') {
 
 // Validar formato nuevo_deposito si se envió
 if ($nuevoDep !== null && $nuevoDep !== '') {
-  if (!preg_match('/^\d{13}$/', $nuevoDep)) {
-    echo json_encode(['success' => false, 'msg' => 'Número de depósito inválido. Debe tener 13 dígitos.']);
+  if (!preg_match('/^\d{13}$/', $nuevoDep) && !preg_match('/^\d{13}-\d{3}$/', $nuevoDep)) {
+    echo json_encode(['success' => false, 'msg' => 'El número de depósito debe tener formato XXXXXXXXXXXXX (13 caracteres) o XXXXXXXXXXXXX-XXX (17 caracteres con guión).']);
     exit;
   }
 }
