@@ -129,7 +129,7 @@ $sqlBase = "
         hd.id_deposito = dj.id_deposito 
         AND hd.tipo_evento = 'CAMBIO_ESTADO'
         AND hd.estado_nuevo = 1
-      ORDER BY hd.fecha_historial_deposito ASC
+      ORDER BY hd.fecha_historial_deposito DESC
       LIMIT 1
     ) AS fecha_finalizacion,
     (
@@ -468,7 +468,7 @@ $showTo = ($perPage === 0) ? $totalRows : min($offset + $perPageUsed, $totalRows
           <th class="col-number">#</th>
 
           <th>Expediente</th>
-          <th>Depósito</th>
+          <th>Depósito / Orden de Pago</th>
           <th>Juzgado</th>
           <?php if ($idRol !== 3): ?><th>Secretario</th><?php endif; ?>
           <th>Solicitante</th>

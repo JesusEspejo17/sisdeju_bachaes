@@ -207,7 +207,7 @@ $datos_usuario_actual = mysqli_fetch_assoc($result_usuario_actual);
       <thead>
         <tr>
           <th>Expediente</th>
-          <th>Depósito</th>
+          <th>Depósito / Orden de Pago</th>
           <?php if (in_array($idRol, [1, 2])): ?>
             <th id="th-secretario">Secretario</th>
           <?php endif; ?>
