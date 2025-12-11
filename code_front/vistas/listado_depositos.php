@@ -617,6 +617,16 @@ $showTo = ($perPage === 0) ? $totalRows : min($offset + $perPageUsed, $totalRows
                 title="Chat cerrado"></i>
             <?php endif; ?>
 
+            <!-- Botón de REVERTIR para roles MAU (2) y AOP (4) cuando está ENTREGADO (estado 1) -->
+            <?php if (in_array($idRol, [2, 4]) && $est === 1): ?>
+              <i class="fas fa-undo revertir-icon" 
+                data-iddep="<?= (int)$d['id_deposito'] ?>" 
+                data-ndep="<?= htmlspecialchars($d['n_deposito'] ?? '', ENT_QUOTES) ?>" 
+                data-exp="<?= htmlspecialchars($d['n_expediente']) ?>"
+                style="color: #ffc107; font-size: 1.4em; cursor: pointer; margin-left: 8px;" 
+                title="Revertir depósito entregado"></i>
+            <?php endif; ?>
+
             <?php
               if ($idRol === 3 && !empty($d['foto_beneficiario'])):
                   $fotoPublica = '/Sistemas/SISDEJU/' . ltrim($d['foto_beneficiario'], '/');

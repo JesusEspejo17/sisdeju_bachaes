@@ -2832,3 +2832,115 @@ document.addEventListener('depositos:updated', function() {
   console.log('Tabla de depósitos actualizada');
 });
 
+// ============================================================
+// FUNCIÓN PARA REVERTIR DEPÓSITO (SOLO ROLES MAU Y AOP)
+// ============================================================
+
+function abrirModalReversion(idDeposito, nDeposito, nExpediente) {
+  // Verificar que el usuario tenga permisos (rol 2 o 4)
+  if (![2, 4].includes(rolActual)) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Sin permisos',
+      text: 'Solo los roles MAU y AOP pueden revertir depósitos.',
+      confirmButtonText: 'OK'
+    });
+    return;
+  }
+
+  Swal.fire({
+    title: 'Revertir Depósito Entregado',
+    html: `
+      <div style="text-align: center; margin: 20px 0;">
+        <p style="margin-bottom: 20px; font-size: 1.1rem;">
+          <strong>Depósito:</strong> ${nDeposito}<br>
+          <strong>Expediente:</strong> ${nExpediente}
+        </p>
+        <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2196F3;">
+          <p style="margin: 0; font-size: 1rem; color: #1565C0;">
+            <strong>Estado actual:</strong> ENTREGADO<br>
+            <strong>Estado al que volverá:</strong> POR ENTREGAR
+          </p>
+        </div>
+        <p style="font-size: 0.95rem; color: #856404; background: #fff3cd; padding: 12px; border-radius: 5px; border-left: 4px solid #ffc107;">
+          <strong>⚠️ Advertencia:</strong> Esta acción revertirá el depósito al estado anterior.
+        </p>
+      </div>
+    `,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: '✅ Revertir',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#ffc107',
+    cancelButtonColor: '#6c757d',
+    width: '500px'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      confirmarReversion(idDeposito);
+    }
+  });
+}
+
+async function confirmarReversion(idDeposito) {
+  try {
+    // Mostrar loader
+    Swal.fire({
+      title: 'Revirtiendo depósito...',
+      text: 'Por favor espere',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
+    const formData = new FormData();
+    formData.append('id_deposito', idDeposito);
+
+    const response = await fetch('../code_back/back_deposito_revertir.php', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      Swal.fire({
+        icon: 'success',
+        title: '✅ Reversión Exitosa',
+        html: `
+          ${data.msg}
+          <br><br>
+          <small style="color: #666;">La página se recargará para mostrar los cambios.</small>
+        `,
+        confirmButtonText: 'OK',
+        timer: 3000
+      }).then(() => {
+        // Recargar la página para ver los cambios
+        location.reload();
+      });
+    } else {
+      throw new Error(data.msg || 'Error al revertir el depósito');
+    }
+
+  } catch (err) {
+    console.error('Error al revertir:', err);
+    Swal.fire({
+      icon: 'error',
+      title: '❌ Error',
+      text: err.message || 'No se pudo revertir el depósito',
+      confirmButtonText: 'OK'
+    });
+  }
+}
+
+// Agregar event listener para los iconos de revertir
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('revertir-icon')) {
+    const idDeposito = e.target.getAttribute('data-iddep');
+    const nDeposito = e.target.getAttribute('data-ndep');
+    const nExpediente = e.target.getAttribute('data-exp');
+    abrirModalReversion(idDeposito, nDeposito, nExpediente);
+  }
+});
+
