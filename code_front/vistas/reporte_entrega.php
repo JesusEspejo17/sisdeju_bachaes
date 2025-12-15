@@ -164,7 +164,7 @@ $datos_usuario_actual = mysqli_fetch_assoc($result_usuario_actual);
         <?php endforeach; ?>
       </select>
       <?php else: ?>
-      <label for="filtroFecha"><strong>Fecha de finalización*:</strong></label>
+      <label for="filtroFecha"><strong>Fecha de entrega*:</strong></label>
       <input type="date" id="filtroFecha" placeholder="Seleccione una fecha" required>
       <!-- Usuario AOP (rol 4): filtro automático oculto -->
       <input type="hidden" id="filtroUsuarioAOP" value="<?= htmlspecialchars($_SESSION['documento']) ?>">
@@ -175,7 +175,7 @@ $datos_usuario_actual = mysqli_fetch_assoc($result_usuario_actual);
 
     <?php if ($idRol != 4): ?>
     <div class="filtro-group">
-      <label for="filtroFecha"><strong>Fecha de finalización*:</strong></label>
+      <label for="filtroFecha"><strong>Fecha de entrega*:</strong></label>
       <input type="date" id="filtroFecha" placeholder="Seleccione una fecha" required>
     </div>
     <?php endif; ?>
@@ -206,15 +206,15 @@ $datos_usuario_actual = mysqli_fetch_assoc($result_usuario_actual);
     <table id="tabla-depositos" border="1" cellpadding="10" cellspacing="0" style="width:100%; text-align:center;">
       <thead>
         <tr>
+          <th>#</th>
           <th>Expediente</th>
           <th>Depósito / Orden de Pago</th>
           <?php if (in_array($idRol, [1, 2])): ?>
             <th id="th-secretario">Secretario</th>
           <?php endif; ?>
           <th>Beneficiario</th>
-          <th>Atención</th>
           <th id="th-estado">Estado</th>
-          <th>Finalización</th>
+          <th>Entrega a Beneficiario</th>
         </tr>
       </thead>
       <tbody id="tabla-body">
@@ -327,9 +327,8 @@ function renderTable(data) {
     const tr = document.createElement('tr');
     const td = document.createElement('td');
     // Calcular colspan dinámicamente basado en columnas visibles
-    let colSpan = 5; // Expediente, Depósito, Beneficiario, Atención, Finalización
+    let colSpan = 6; // #, Expediente, Depósito, Beneficiario, Estado, Entrega a Beneficiario
     if (userRole === 1 || userRole === 2) colSpan += 1; // Secretario
-    if (userRole !== 4) colSpan += 1; // Estado (solo si no es rol 4)
     td.colSpan = colSpan;
     td.style.textAlign = 'center';
     td.style.fontStyle = 'italic';
@@ -339,7 +338,7 @@ function renderTable(data) {
     return;
   }
 
-  data.forEach(d => {
+  data.forEach((d, index) => {
     const est = parseInt(d.id_estado, 10);
     const tr = document.createElement('tr');
     
@@ -375,6 +374,7 @@ function renderTable(data) {
     }
     
     let html = `
+      <td>${index + 1}</td>
       <td>${d.n_expediente || ''}</td>
       <td>${d.n_deposito || ''}</td>
     `;
@@ -393,8 +393,7 @@ function renderTable(data) {
     const mostrarColumnaEstado = !esUsuarioAOP && !usuarioAOPSeleccionado;
     
     html += `
-      <td>${d.dni_beneficiario ? `${d.dni_beneficiario} – ${d.nombre_beneficiario}` : '<i>Sin beneficiario</i>'}</td>
-      <td>${formatDate(d.fecha_atencion)}</td>`;
+      <td>${d.dni_beneficiario ? `${d.dni_beneficiario} – ${d.nombre_beneficiario}` : '<i>Sin beneficiario</i>'}</td>`;
     
     if (mostrarColumnaEstado) {
       html += `<td class="td-estado">${estadoTexto}</td>`;
@@ -679,7 +678,7 @@ function exportarPDF() {
   }
   
   if (!fecha) {
-    Swal.fire('Error', 'Debe seleccionar una fecha de finalización para exportar el PDF.', 'error');
+    Swal.fire('Error', 'Debe seleccionar una fecha de entrega para exportar el PDF.', 'error');
     return;
   }
   
@@ -866,6 +865,9 @@ async function exportarPDFReporteCompleto() {
       if (texto.toLowerCase().includes('juzgado')) {
         return; // Omitir columna Juzgado siempre
       }
+      if (texto.toLowerCase().includes('atención')) {
+        return; // Omitir columna Atención siempre
+      }
       if (texto.toLowerCase().includes('secretario') && filtroSecretarioActivo) {
         return; // Omitir columna Secretario si hay filtro activo
       }
@@ -879,8 +881,12 @@ async function exportarPDFReporteCompleto() {
     headers.push('Observación');
 
     // Construir filas desde los datos de exportación
+    let numeroFila = 1;
     exportData.forEach((deposito) => {
       const row = [];
+      
+      // Número
+      row.push(numeroFila++);
       
       // Expediente
       row.push(deposito.n_expediente || '--');
@@ -897,10 +903,6 @@ async function exportarPDFReporteCompleto() {
       const beneficiario = deposito.nombre_beneficiario || 'Sin beneficiario';
       row.push(beneficiario);
       
-      // Atención
-      const fechaAtencion = deposito.fecha_atencion ? formatDate(deposito.fecha_atencion) : '--';
-      row.push(fechaAtencion);
-      
       // Estado - solo si está en headers (no para rol 4 o con filtro AOP)
       if (headers.some(h => h.toLowerCase().includes('estado'))) {
         let estadoTexto = deposito.nombre_estado || '--';
@@ -916,9 +918,9 @@ async function exportarPDFReporteCompleto() {
         row.push(estadoTexto);
       }
       
-      // Finalización
-      const fechaFinalizacion = deposito.fecha_finalizacion ? formatDate(deposito.fecha_finalizacion) : '--';
-      row.push(fechaFinalizacion);
+      // Entrega a Beneficiario
+      const fechaEntrega = deposito.fecha_finalizacion ? formatDate(deposito.fecha_finalizacion) : '--';
+      row.push(fechaEntrega);
       
       // Observación (columna vacía)
       row.push('');
@@ -987,7 +989,7 @@ async function exportarPDFReporteCompleto() {
   
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.setTextColor(132, 0, 0);
+  doc.setTextColor(0, 0, 0);
   doc.text('"REPORTE DE ENTREGA DE ÓRDENES DE PAGO"', doc.internal.pageSize.getWidth() / 2, 38, { align: "center" });
 
   doc.setFont("helvetica", "normal");
@@ -1042,9 +1044,15 @@ async function exportarPDFReporteCompleto() {
   doc.setFontSize(9);
   doc.text(textoFecha, 14, 49);
 
+  // Total entregados alineado a la derecha
+  const totalEntregados = exportData.length;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text(`Total entregados: ${totalEntregados}`, doc.internal.pageSize.getWidth() - 14, 49, { align: "right" });
+
   // Línea separadora
   doc.setLineWidth(0.3);
-  doc.setDrawColor(132, 0, 0);
+  doc.setDrawColor(0, 0, 0);
   doc.line(14, 52, doc.internal.pageSize.getWidth() - 14, 52);
   
   // Mostrar nombre del secretario seleccionado
@@ -1053,6 +1061,24 @@ async function exportarPDFReporteCompleto() {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.text(`Secretario: ${secretarioSeleccionadoNombre}`, 14, 57);
+    
+    // Encargado O.P. alineado a la derecha
+    let nombreEncargado = 'Administrador';
+    let dniEncargado = '00000000';
+    
+    if (userRole === 4) {
+      nombreEncargado = usuarioActual ? usuarioActual.nombre_completo : 'AOP';
+      dniEncargado = usuarioActual ? usuarioActual.documento : '00000000';
+    } else {
+      const usuarioAOPSeleccionado = filtroUsuarioAOPEl.value;
+      const usuario = usuariosAOP.find(u => u.documento === usuarioAOPSeleccionado);
+      nombreEncargado = usuario ? usuario.nombre_completo : 'Administrador';
+      dniEncargado = usuario ? usuario.documento : '00000000';
+    }
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(`Encargado O.P.: ${nombreEncargado}`, doc.internal.pageSize.getWidth() - 14, 57, { align: "right" });
   }
 
   doc.autoTable({
@@ -1077,8 +1103,8 @@ async function exportarPDFReporteCompleto() {
       overflow: 'linebreak'
     },
     headStyles: {
-      fillColor: [132, 0, 0],
-      textColor: 255,
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
       fontSize: 7,
       fontStyle: "bold",
       halign: "center",
@@ -1092,9 +1118,9 @@ async function exportarPDFReporteCompleto() {
       valign: "middle"
     },
     alternateRowStyles: {
-      fillColor: [248, 225, 225],
+      fillColor: [255, 255, 255],
     },
-    tableLineColor: [92, 0, 0],
+    tableLineColor: [0, 0, 0],
     tableLineWidth: 0.1,
     didDrawPage: function (data) {
       // Agregar encabezado a cada página de la tabla
